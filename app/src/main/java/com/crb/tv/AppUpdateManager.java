@@ -311,11 +311,26 @@ public final class AppUpdateManager {
     }
 
     public static void launchApkInstaller(Context context) {
+        File updateDir = new File(context.getCacheDir(), "updates");
+        File apkFile = new File(updateDir, "CrbLauncher-update.apk");
+        if (!apkFile.exists() || apkFile.length() < 100000L) {
+            throw new RuntimeException("File APK update rusak atau belum selesai diunduh");
+        }
         Uri apkUri = Uri.parse("content://" + ApkUpdateProvider.AUTHORITY + "/CrbLauncher-update.apk");
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        context.startActivity(intent);
+        try {
+            Intent installIntent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            installIntent.setData(apkUri);
+            installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+            installIntent.putExtra(Intent.EXTRA_RETURN_RESULT, false);
+            installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            context.startActivity(installIntent);
+            return;
+        } catch (Exception ignored) {
+        }
+        Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+        viewIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+        viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        context.startActivity(viewIntent);
     }
 
     private static String sanitizeRepoSlug(String raw) {
