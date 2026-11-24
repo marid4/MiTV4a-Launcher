@@ -582,6 +582,98 @@
                         android:shadowRadius="4" />
                 </LinearLayout>
 
+                <!-- POJOK KANAN BAWAH (DI ATAS JADWAL BOLA): Card Doa Harian & Lafadz Al-Qur'an -->
+                <LinearLayout
+                    android:id="@+id/dua_card"
+                    android:layout_width="345dp"
+                    android:layout_height="wrap_content"
+                    android:layout_above="@id/football_card"
+                    android:layout_alignParentRight="true"
+                    android:layout_marginBottom="6dp"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:background="#3D06281E"
+                    android:focusable="true"
+                    android:clickable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:layout_width="3dp"
+                            android:layout_height="11dp"
+                            android:background="#FF14B8A6"
+                            android:layout_marginRight="5dp" />
+
+                        <TextView
+                            android:id="@+id/dua_card_title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="DOA HARIAN &amp; AL-QUR'AN"
+                            android:textColor="#FF99F6E4"
+                            android:textSize="8.5sp"
+                            android:shadowColor="#CC000000"
+                            android:shadowDx="0"
+                            android:shadowDy="1"
+                            android:shadowRadius="3"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:fontFamily="sans-serif-medium" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingLeft="5dp"
+                            android:paddingRight="5dp"
+                            android:paddingTop="1dp"
+                            android:paddingBottom="1dp"
+                            android:text="SUARA"
+                            android:textColor="#FFECFDF5"
+                            android:textSize="7.5sp"
+                            android:singleLine="true"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/dua_card_arabic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:gravity="center"
+                        android:text="Rabbana atina fid-dunya hasanah"
+                        android:textColor="#FFFEF08A"
+                        android:textSize="13sp"
+                        android:shadowColor="#DD000000"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="4"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+
+                    <TextView
+                        android:id="@+id/dua_card_meaning"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:gravity="center"
+                        android:text="Klik untuk baca &amp; dengar suara doa"
+                        android:textColor="#FFE2E8F0"
+                        android:textSize="9sp"
+                        android:shadowColor="#CC000000"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="3"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
                 <!-- POJOK KANAN BAWAH: Card Jadwal Live RBTV+ (5 Liga Top Eropa, Liga 1 ID, Asia, UCL, UEFA & MotoGP) -->
                 <LinearLayout
                     android:id="@+id/football_card"
