@@ -15,21 +15,26 @@ import java.io.File;
 import java.util.Calendar;
 
 /**
- * Generator Wallpaper HD & Pemuat Foto Kustom dari Penyimpanan TV/HP:
- * Menyediakan 6 tema wallpaper artistik bawaan (hemat RAM, resolusi 960x540 RGB_565)
- * serta mendukung pemuatan gambar wallpaper kustom (.jpg/.png) milik pengguna.
+ * Generator & Pemuat Background Tema Bawaan Crb Launcher (com.crb.tv):
+ * - Tema Bawaan #1: Kittens Denim (gambar upload)
+ * - Tema Bawaan #2: Panda Zen (gambar upload)
+ * - Tema Artistik & Foto/GIF/MP4 Kustom dari HP/Memori
  */
 public final class Sky {
 
-    public static final int WALLPAPER_TIME_OF_DAY = 0;
-    public static final int WALLPAPER_CIREBON_EMERALD = 1;
-    public static final int WALLPAPER_STADIUM_NIGHT = 2;
-    public static final int WALLPAPER_AURORA_BOREALIS = 3;
-    public static final int WALLPAPER_SUNSET_MOUNTAINS = 4;
-    public static final int WALLPAPER_OLED_PITCH_BLACK = 5;
-    public static final int WALLPAPER_CUSTOM_IMAGE = 6;
+    public static final int WALLPAPER_KITTENS_DENIM = 0;
+    public static final int WALLPAPER_PANDA_ZEN = 1;
+    public static final int WALLPAPER_TIME_OF_DAY = 2;
+    public static final int WALLPAPER_CIREBON_EMERALD = 3;
+    public static final int WALLPAPER_STADIUM_NIGHT = 4;
+    public static final int WALLPAPER_AURORA_BOREALIS = 5;
+    public static final int WALLPAPER_SUNSET_MOUNTAINS = 6;
+    public static final int WALLPAPER_OLED_PITCH_BLACK = 7;
+    public static final int WALLPAPER_CUSTOM_IMAGE = 8;
 
     public static final String[] WALLPAPER_NAMES = new String[] {
+            "Tema Bawaan 1: Kucing Denim (Default)",
+            "Tema Bawaan 2: Panda Zen Merah",
             "Langit Dinamis Waktu Nyata (Pagi/Siang/Senja/Malam)",
             "Masjid Raya & Langit Zamrud Cirebon (Emerald Night)",
             "Stadion Sepak Bola Malam Hari (Champions Stadium Arena)",
@@ -40,13 +45,39 @@ public final class Sky {
     };
 
     public static Bitmap loadOrRenderWallpaper(Context context, int preset, int intensityPercent, String customPath) {
+        if (customPath != null && !customPath.trim().isEmpty()) {
+            Bitmap customBmp = decodeCustomWallpaper(context, customPath);
+            if (customBmp != null) {
+                return customBmp;
+            }
+        }
         if (preset == WALLPAPER_CUSTOM_IMAGE) {
             Bitmap customBmp = decodeCustomWallpaper(context, customPath);
             if (customBmp != null) {
                 return customBmp;
             }
         }
+        if (preset == WALLPAPER_KITTENS_DENIM) {
+            Bitmap resBmp = decodeDrawableResource(context, "bg_preset_kittens");
+            if (resBmp != null) return resBmp;
+        }
+        if (preset == WALLPAPER_PANDA_ZEN) {
+            Bitmap resBmp = decodeDrawableResource(context, "bg_preset_panda");
+            if (resBmp != null) return resBmp;
+        }
         return renderPresetWallpaper(preset, intensityPercent);
+    }
+
+    private static Bitmap decodeDrawableResource(Context context, String drawableName) {
+        try {
+            int resId = context.getResources().getIdentifier(drawableName, "drawable", context.getPackageName());
+            if (resId == 0) return null;
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inPreferredConfig = Bitmap.Config.RGB_565;
+            return BitmapFactory.decodeResource(context.getResources(), resId, opts);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static Bitmap decodeCustomWallpaper(Context context, String customPath) {
@@ -60,11 +91,6 @@ public final class Sky {
                 File internalWall = new File(context.getFilesDir(), "custom_wallpaper.jpg");
                 if (internalWall.exists() && internalWall.isFile()) {
                     target = internalWall;
-                } else {
-                    File themeWall = new File(context.getFilesDir(), "wallpaper.jpg");
-                    if (themeWall.exists() && themeWall.isFile()) {
-                        target = themeWall;
-                    }
                 }
             }
             if (target == null) return null;
@@ -118,9 +144,9 @@ public final class Sky {
             glowColor = 0x8838BDF8;
             accentGlowColor = 0x6610B981;
         } else if (preset == WALLPAPER_AURORA_BOREALIS) {
-            topColor = 0xFF09071E;
-            midColor = 0xFF1A103C;
-            bottomColor = 0xFF082032;
+            topColor = 0xFF041322;
+            midColor = 0xFF0A3238;
+            bottomColor = 0xFF171236;
             glowColor = 0x882DD4BF;
             accentGlowColor = 0x77A855F7;
         } else if (preset == WALLPAPER_SUNSET_MOUNTAINS) {
@@ -130,7 +156,6 @@ public final class Sky {
             glowColor = 0x88F59E0B;
             accentGlowColor = 0x66EC4899;
         } else {
-            // WALLPAPER_TIME_OF_DAY
             Calendar cal = Calendar.getInstance();
             float timeHours = cal.get(Calendar.HOUR_OF_DAY) + (cal.get(Calendar.MINUTE) / 60.0f);
             if (timeHours >= 4.0f && timeHours < 6.5f) {
@@ -165,7 +190,6 @@ public final class Sky {
         midColor = scaleColor(midColor, scale);
         bottomColor = scaleColor(bottomColor, scale);
 
-        // 1. Base Sky Gradient
         Paint skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         skyPaint.setShader(new LinearGradient(
                 0, 0, 0, h,
@@ -175,7 +199,6 @@ public final class Sky {
         ));
         canvas.drawRect(0, 0, w, h, skyPaint);
 
-        // 2. Primary Atmospheric Radial Glow on the Right/Center Showcase Area
         Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         glowPaint.setShader(new RadialGradient(
                 w * 0.68f, h * 0.42f, w * 0.48f,
@@ -184,7 +207,6 @@ public final class Sky {
         ));
         canvas.drawRect(0, 0, w, h, glowPaint);
 
-        // 3. Secondary Accent Glow
         Paint accentPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         accentPaint.setShader(new RadialGradient(
                 w * 0.82f, h * 0.25f, w * 0.35f,
@@ -193,9 +215,7 @@ public final class Sky {
         ));
         canvas.drawRect(0, 0, w, h, accentPaint);
 
-        // 4. Draw Subtle Starfield & Crescent / Mountain / Stadium / Mosque Silhouette on the open Right Side
         drawArtisticScenery(canvas, w, h, preset);
-
         return bmp;
     }
 
@@ -210,7 +230,6 @@ public final class Sky {
             canvas.drawCircle(s[0], s[1], s[2], starPaint);
         }
 
-        // Draw layered mountain/horizon silhouettes on the right showcase area (Gunung Ciremai / Horizon)
         Paint backHill = new Paint(Paint.ANTI_ALIAS_FLAG);
         backHill.setStyle(Paint.Style.FILL);
         backHill.setColor(0x44050811);
@@ -238,14 +257,12 @@ public final class Sky {
         canvas.drawPath(hill2, frontHill);
 
         if (preset == WALLPAPER_CIREBON_EMERALD) {
-            // Subtle Crescent Moon in the upper-right sky
             Paint moonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             moonPaint.setColor(0xCCFDE047);
             canvas.drawCircle(w * 0.78f, h * 0.22f, 26f, moonPaint);
             moonPaint.setColor(0xFF052920);
             canvas.drawCircle(w * 0.78f + 9f, h * 0.22f - 5f, 23f, moonPaint);
         } else if (preset == WALLPAPER_STADIUM_NIGHT) {
-            // Subtle Stadium Pitch Lines in the lower-right horizon
             Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             linePaint.setStyle(Paint.Style.STROKE);
             linePaint.setStrokeWidth(1.5f);

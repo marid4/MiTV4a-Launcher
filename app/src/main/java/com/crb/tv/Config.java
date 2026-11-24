@@ -61,7 +61,7 @@ public final class Config {
     public String liveTvAction = "";
 
     // Pengaturan Wallpaper / Background (.jpg, .png, .gif, .mp4) & Rolling Background
-    public int wallpaperPreset = Sky.WALLPAPER_CIREBON_EMERALD;
+    public int wallpaperPreset = Sky.WALLPAPER_KITTENS_DENIM;
     public int wallpaperDimPercent = 0;
     public String customWallpaperPath = "";
     public boolean rollingBackgroundEnabled = false;
@@ -110,6 +110,13 @@ public final class Config {
     public boolean autoCheckGithubUpdate = true;
     public boolean autoDownloadInstallUpdate = true;
     public String githubRepoSlug = "marid4/CrbLauncher";
+
+    // Modifikasi 8: Addon AdGuard Home & DNS
+    public String adguardHomeUrl = "http://192.168.1.2:3000";
+    public String adguardUsername = "admin";
+    public String adguardPassword = "";
+    public int dnsPresetIndex = 0;
+    public String customDnsHost = "dns.adguard-dns.com";
 
     public static Config load(Context context) {
         Config cfg = new Config();
@@ -196,6 +203,11 @@ public final class Config {
         cfg.autoCheckGithubUpdate = prefs.getBoolean("pref_auto_check_update", true);
         cfg.autoDownloadInstallUpdate = prefs.getBoolean("pref_auto_install_update", true);
         cfg.githubRepoSlug = prefs.getString("pref_github_repo", "marid4/CrbLauncher");
+        cfg.adguardHomeUrl = prefs.getString("pref_adguard_url", "http://192.168.1.2:3000");
+        cfg.adguardUsername = prefs.getString("pref_adguard_user", "admin");
+        cfg.adguardPassword = prefs.getString("pref_adguard_pass", "");
+        cfg.dnsPresetIndex = clamp(prefs.getInt("pref_dns_preset_idx", 0), 0, 5);
+        cfg.customDnsHost = prefs.getString("pref_custom_dns_host", "dns.adguard-dns.com");
 
         cfg.favoriteAppsInitialized = prefs.getBoolean("pref_favorites_initialized", false);
         String favCsv = prefs.getString("pref_favorite_apps_csv", "");
