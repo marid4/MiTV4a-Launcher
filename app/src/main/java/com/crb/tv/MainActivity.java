@@ -102,6 +102,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
     private WeatherManager weatherManager;
     private AppUpdateManager updateManager;
     private AdzanAudioPlayer adzanPlayer;
+    private DailyDuaManager duaManager;
     private PrayerTimesCalculator.DailyPrayerSchedule todayPrayerTimes;
     private WallpaperTransferServer transferServer;
 
@@ -259,6 +260,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         weatherManager = new WeatherManager();
         updateManager = new AppUpdateManager();
         adzanPlayer = new AdzanAudioPlayer();
+        duaManager = new DailyDuaManager();
 
         bindViews();
         setupSidebarLayoutAndStyle();
@@ -1421,6 +1423,9 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         }
         if (adzanPlayer != null) {
             adzanPlayer.stop();
+        }
+        if (duaManager != null) {
+            duaManager.stopAudio();
         }
         stopCustomBackgroundMedia();
         bgExecutor.shutdownNow();
@@ -3970,6 +3975,9 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         addons.add(new IconMenuItem("ADG", 0xFF22C55E,
                 "Addon AdGuard Home & DNS (" + AdGuardDnsManager.DNS_PRESET_NAMES[config.dnsPresetIndex] + ")",
                 "Pantau & kontrol AdGuard Home, pilih Private DNS & tes ping DNS"));
+        addons.add(new IconMenuItem("DOA", 0xFF14B8A6,
+                "Addon Doa Sehari-hari & Lafadz Al-Qur'an",
+                "Bacaan doa harian & ayat Al-Qur'an pilihan lengkap dengan teks Arab, arti & suara"));
 
         showIconMenuDialog("Addon Crb Launcher", addons, new OnIconMenuClickListener() {
             @Override
@@ -3992,6 +4000,9 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                         break;
                     case 5:
                         showAdGuardDnsAddonDialog();
+                        break;
+                    case 6:
+                        showDailyDuaDialog();
                         break;
                 }
             }
@@ -4632,6 +4643,323 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                         showTranslucentDialog(builder);
                     }
                 });
+            }
+        });
+    }
+
+    // =========================================================================
+    // ADDON DOA SEHARI-HARI & LAFADZ AL-QUR'AN DENGAN SUARA
+    // =========================================================================
+
+    private void showDailyDuaDialog() {
+        if (duaManager == null) {
+            duaManager = new DailyDuaManager();
+        }
+        final float density = getResources().getDisplayMetrics().density;
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
+        root.setBackgroundColor(Color.TRANSPARENT);
+
+        // Baris Tab Kategori
+        LinearLayout tabRow = new LinearLayout(this);
+        tabRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams tabRowLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tabRowLp.bottomMargin = (int) (10 * density);
+        tabRow.setLayoutParams(tabRowLp);
+
+        final TextView tabDoa = new TextView(this);
+        final TextView tabQuran = new TextView(this);
+        tabDoa.setText("DOA SEHARI-HARI");
+        tabQuran.setText("LAFADZ AL-QUR'AN");
+
+        for (TextView tab : new TextView[]{tabDoa, tabQuran}) {
+            LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            tLp.rightMargin = (int) (6 * density);
+            tab.setLayoutParams(tLp);
+            tab.setGravity(Gravity.CENTER);
+            tab.setPadding((int) (8 * density), (int) (8 * density), (int) (8 * density), (int) (8 * density));
+            tab.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+            tab.setTypeface(Typeface.DEFAULT_BOLD);
+            tab.setTextColor(0xFFFFFFFF);
+            tab.setFocusable(true);
+            tab.setFocusableInTouchMode(true);
+            tab.setClickable(true);
+            tabRow.addView(tab);
+        }
+        root.addView(tabRow);
+
+        // Kartu Detail Utama (Arab, Latin, Arti, Kontrol Suara)
+        LinearLayout detailCard = new LinearLayout(this);
+        detailCard.setOrientation(LinearLayout.VERTICAL);
+        detailCard.setPadding((int) (14 * density), (int) (12 * density), (int) (14 * density), (int) (12 * density));
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setCornerRadius(14f * density);
+        cardBg.setColor(0x550F172A);
+        cardBg.setStroke((int) (1.2f * density), 0x5538BDF8);
+        detailCard.setBackground(cardBg);
+        LinearLayout.LayoutParams dcLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dcLp.bottomMargin = (int) (10 * density);
+        detailCard.setLayoutParams(dcLp);
+
+        final TextView tvDuaTitle = new TextView(this);
+        tvDuaTitle.setTextColor(0xFFFFFFFF);
+        tvDuaTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        tvDuaTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        detailCard.addView(tvDuaTitle);
+
+        final TextView tvDuaSource = new TextView(this);
+        tvDuaSource.setTextColor(0xFF94A3B8);
+        tvDuaSource.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+        tvDuaSource.setPadding(0, (int) (2 * density), 0, (int) (8 * density));
+        detailCard.addView(tvDuaSource);
+
+        final TextView tvDuaArabic = new TextView(this);
+        tvDuaArabic.setTextColor(0xFFFEF08A);
+        tvDuaArabic.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
+        tvDuaArabic.setGravity(Gravity.CENTER);
+        tvDuaArabic.setLineSpacing(0f, 1.35f);
+        tvDuaArabic.setPadding(0, (int) (4 * density), 0, (int) (8 * density));
+        tvDuaArabic.setShadowLayer(4f, 0f, 1f, 0xEE000000);
+        detailCard.addView(tvDuaArabic);
+
+        final TextView tvDuaLatin = new TextView(this);
+        tvDuaLatin.setTextColor(0xFFBAE6FD);
+        tvDuaLatin.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+        tvDuaLatin.setTypeface(Typeface.DEFAULT, Typeface.ITALIC);
+        tvDuaLatin.setPadding(0, 0, 0, (int) (6 * density));
+        detailCard.addView(tvDuaLatin);
+
+        final TextView tvDuaMeaning = new TextView(this);
+        tvDuaMeaning.setTextColor(0xFFE2E8F0);
+        tvDuaMeaning.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+        tvDuaMeaning.setPadding(0, 0, 0, (int) (8 * density));
+        detailCard.addView(tvDuaMeaning);
+
+        final TextView tvAudioStatus = new TextView(this);
+        tvAudioStatus.setText("Status Suara: Siap diputar");
+        tvAudioStatus.setTextColor(0xFF34D399);
+        tvAudioStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+        tvAudioStatus.setPadding(0, 0, 0, (int) (8 * density));
+        detailCard.addView(tvAudioStatus);
+
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        final TextView btnPlay = new TextView(this);
+        btnPlay.setText("Putar Suara");
+        final TextView btnStop = new TextView(this);
+        btnStop.setText("Stop Suara");
+
+        for (final TextView b : new TextView[]{btnPlay, btnStop}) {
+            LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            bLp.rightMargin = (int) (8 * density);
+            b.setLayoutParams(bLp);
+            b.setGravity(Gravity.CENTER);
+            b.setPadding((int) (10 * density), (int) (8 * density), (int) (10 * density), (int) (8 * density));
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+            b.setTypeface(Typeface.DEFAULT_BOLD);
+            b.setTextColor(0xFFFFFFFF);
+            b.setFocusable(true);
+            b.setFocusableInTouchMode(true);
+            b.setClickable(true);
+
+            final GradientDrawable nb = new GradientDrawable();
+            nb.setCornerRadius(10f * density);
+            nb.setColor(b == btnPlay ? 0x99059669 : 0x99DC2626);
+            nb.setStroke((int) (1f * density), 0x55FFFFFF);
+
+            final GradientDrawable fb = new GradientDrawable();
+            fb.setCornerRadius(10f * density);
+            fb.setColor(b == btnPlay ? 0xCC10B981 : 0xCCEF4444);
+            fb.setStroke((int) (2.2f * density), 0xFFFDE047);
+
+            b.setBackground(nb);
+            b.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    v.setBackground(hasFocus ? fb : nb);
+                    v.animate().scaleX(hasFocus ? 1.03f : 1f).scaleY(hasFocus ? 1.03f : 1f).setDuration(120).start();
+                }
+            });
+            btnRow.addView(b);
+        }
+        detailCard.addView(btnRow);
+        root.addView(detailCard);
+
+        // Daftar Scrollable Item Doa / Ayat
+        ScrollView listScroll = new ScrollView(this);
+        LinearLayout.LayoutParams scLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (int) (190 * density));
+        listScroll.setLayoutParams(scLp);
+        final LinearLayout listContainer = new LinearLayout(this);
+        listContainer.setOrientation(LinearLayout.VERTICAL);
+        listScroll.addView(listContainer);
+        root.addView(listScroll);
+
+        final DailyDuaManager.DuaItem[] currentSelected = new DailyDuaManager.DuaItem[1];
+        final String[] currentCategory = new String[]{DailyDuaManager.CAT_DOA};
+
+        final DailyDuaManager.OnAudioStateListener audioListener = new DailyDuaManager.OnAudioStateListener() {
+            @Override
+            public void onAudioStatus(final String statusMessage, boolean playing) {
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        tvAudioStatus.setText("Status Suara: " + statusMessage);
+                    }
+                });
+            }
+        };
+
+        final Runnable updateDetailCard = new Runnable() {
+            @Override
+            public void run() {
+                DailyDuaManager.DuaItem sel = currentSelected[0];
+                if (sel == null) return;
+                tvDuaTitle.setText(sel.title);
+                tvDuaSource.setText("Sumber: " + sel.sourceRef
+                        + (!sel.audioUrl.isEmpty() ? "  |  Audio: Qari Alafasy" : "  |  Audio: Vokal TTS"));
+                tvDuaArabic.setText(sel.arabicText);
+                tvDuaLatin.setText(sel.latinText);
+                tvDuaMeaning.setText("Artinya: "" + sel.indonesianMeaning + """);
+            }
+        };
+
+        final Runnable renderCategory = new Runnable() {
+            @Override
+            public void run() {
+                boolean isDoa = DailyDuaManager.CAT_DOA.equals(currentCategory[0]);
+                GradientDrawable activeTabBg = new GradientDrawable();
+                activeTabBg.setCornerRadius(10f * density);
+                activeTabBg.setColor(0x990284C7);
+                activeTabBg.setStroke((int) (1.8f * density), 0xFFFDE047);
+
+                GradientDrawable inactiveTabBg = new GradientDrawable();
+                inactiveTabBg.setCornerRadius(10f * density);
+                inactiveTabBg.setColor(0x361E293B);
+                inactiveTabBg.setStroke((int) (1f * density), 0x44FFFFFF);
+
+                tabDoa.setBackground(isDoa ? activeTabBg : inactiveTabBg);
+                tabQuran.setBackground(!isDoa ? activeTabBg : inactiveTabBg);
+
+                listContainer.removeAllViews();
+                List<DailyDuaManager.DuaItem> items = duaManager.getItemsByCategory(currentCategory[0]);
+                if (!items.isEmpty()) {
+                    currentSelected[0] = items.get(0);
+                    updateDetailCard.run();
+                }
+
+                for (int i = 0; i < items.size(); i++) {
+                    final DailyDuaManager.DuaItem item = items.get(i);
+                    final LinearLayout row = new LinearLayout(MainActivity.this);
+                    row.setOrientation(LinearLayout.VERTICAL);
+                    row.setPadding((int) (10 * density), (int) (8 * density), (int) (10 * density), (int) (8 * density));
+                    row.setFocusable(true);
+                    row.setFocusableInTouchMode(true);
+                    row.setClickable(true);
+
+                    LinearLayout.LayoutParams rLp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    rLp.bottomMargin = (int) (6 * density);
+                    row.setLayoutParams(rLp);
+
+                    final GradientDrawable normalBg = new GradientDrawable();
+                    normalBg.setCornerRadius(10f * density);
+                    normalBg.setColor(0x361E293B);
+                    normalBg.setStroke((int) (1f * density), 0x44FFFFFF);
+
+                    final GradientDrawable focusedBg = new GradientDrawable();
+                    focusedBg.setCornerRadius(10f * density);
+                    focusedBg.setColor(0x880284C7);
+                    focusedBg.setStroke((int) (2.2f * density), 0xFFFDE047);
+
+                    row.setBackground(normalBg);
+                    row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                        @Override
+                        public void onFocusChange(View v, boolean hasFocus) {
+                            v.setBackground(hasFocus ? focusedBg : normalBg);
+                        }
+                    });
+
+                    TextView rowTitle = new TextView(MainActivity.this);
+                    rowTitle.setText((i + 1) + ". " + item.title + " (" + item.sourceRef + ")");
+                    rowTitle.setTextColor(0xFFFFFFFF);
+                    rowTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+                    rowTitle.setTypeface(Typeface.DEFAULT_BOLD);
+                    row.addView(rowTitle);
+
+                    TextView rowSub = new TextView(MainActivity.this);
+                    rowSub.setText(item.indonesianMeaning);
+                    rowSub.setTextColor(0xFFBAE6FD);
+                    rowSub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+                    rowSub.setMaxLines(1);
+                    rowSub.setEllipsize(TextUtils.TruncateAt.END);
+                    row.addView(rowSub);
+
+                    row.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            currentSelected[0] = item;
+                            updateDetailCard.run();
+                            duaManager.playDuaAudio(MainActivity.this, item, audioListener);
+                        }
+                    });
+
+                    listContainer.addView(row);
+                }
+            }
+        };
+
+        tabDoa.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                currentCategory[0] = DailyDuaManager.CAT_DOA;
+                renderCategory.run();
+            }
+        });
+        tabQuran.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                currentCategory[0] = DailyDuaManager.CAT_QURAN;
+                renderCategory.run();
+            }
+        });
+
+        btnPlay.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (currentSelected[0] != null) {
+                    duaManager.playDuaAudio(MainActivity.this, currentSelected[0], audioListener);
+                }
+            }
+        });
+        btnStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                duaManager.stopAudio();
+                tvAudioStatus.setText("Status Suara: Dihentikan");
+            }
+        });
+
+        renderCategory.run();
+
+        AlertDialog dlg = showTranslucentDialog(
+                new AlertDialog.Builder(this)
+                        .setTitle("Doa Sehari-hari & Lafadz Al-Qur'an")
+                        .setView(root)
+                        .setNegativeButton("Tutup", null)
+        );
+        dlg.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                if (duaManager != null) {
+                    duaManager.stopAudio();
+                }
             }
         });
     }
