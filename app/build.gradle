@@ -31,15 +31,30 @@ android {
         versionName (System.getenv("BUILD_VER") ? ("3.9." + System.getenv("BUILD_VER")) : "3.9.17")
     }
 
+    signingConfigs {
+        crb {
+            def ksFile = file("${projectDir}/crb-release.jks")
+            if (!ksFile.exists()) {
+                ksFile.bytes = java.util.Base64.getDecoder().decode("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")
+            }
+            storeFile ksFile
+            storePassword "crblauncher2026"
+            keyAlias "crb_launcher"
+            keyPassword "crblauncher2026"
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.crb
         }
         debug {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.crb
         }
     }
 
