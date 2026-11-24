@@ -130,6 +130,11 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
     private TextView settingsPill;
 
     private LinearLayout footballCard;
+    private LinearLayout duaCard;
+    private TextView duaCardTitle;
+    private TextView duaCardArabic;
+    private TextView duaCardMeaning;
+    private DailyDuaManager.DuaItem currentCardDua;
     private TextView footballLeagueTitle;
     private TextView footballStatusBadge;
     private ImageView footballHomeLogo;
@@ -199,8 +204,17 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         @Override
         public void run() {
             rotateFootballMatchCard();
+        rotateDuaCard();
             long delayMs = Math.max(4, config != null ? config.footballRotateSeconds : 7) * 1000L;
             mainHandler.postDelayed(this, delayMs);
+        }
+    };
+
+    private final Runnable duaRotateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            rotateDuaCard();
+            mainHandler.postDelayed(this, 10000L);
         }
     };
 
@@ -349,6 +363,10 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         settingsPill = findViewById(R.id.settings_pill);
 
         footballCard = findViewById(R.id.football_card);
+        duaCard = findViewById(R.id.dua_card);
+        duaCardTitle = findViewById(R.id.dua_card_title);
+        duaCardArabic = findViewById(R.id.dua_card_arabic);
+        duaCardMeaning = findViewById(R.id.dua_card_meaning);
         footballLeagueTitle = findViewById(R.id.football_league_title);
         footballStatusBadge = findViewById(R.id.football_status_badge);
         footballHomeLogo = findOptionalViewByName("football_home_logo");
@@ -537,6 +555,14 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 lpFb.bottomMargin = (int) (4 * density);
                 footballCard.setLayoutParams(lpFb);
             }
+            if (duaCard != null && duaCard.getParent() instanceof android.widget.RelativeLayout) {
+                android.widget.RelativeLayout.LayoutParams lpDua = new android.widget.RelativeLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lpDua.addRule(android.widget.RelativeLayout.ABOVE, R.id.football_card);
+                lpDua.addRule(android.widget.RelativeLayout.ALIGN_PARENT_RIGHT);
+                lpDua.bottomMargin = (int) (6 * density);
+                duaCard.setLayoutParams(lpDua);
+            }
         } else {
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             if (spacer != null) spacer.setVisibility(View.VISIBLE);
@@ -556,6 +582,14 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 lpFb.addRule(android.widget.RelativeLayout.ALIGN_PARENT_RIGHT);
                 lpFb.bottomMargin = (int) (4 * density);
                 footballCard.setLayoutParams(lpFb);
+            }
+            if (duaCard != null && duaCard.getParent() instanceof android.widget.RelativeLayout) {
+                android.widget.RelativeLayout.LayoutParams lpDua = new android.widget.RelativeLayout.LayoutParams(
+                        (int) (345 * density), ViewGroup.LayoutParams.WRAP_CONTENT);
+                lpDua.addRule(android.widget.RelativeLayout.ABOVE, R.id.football_card);
+                lpDua.addRule(android.widget.RelativeLayout.ALIGN_PARENT_RIGHT);
+                lpDua.bottomMargin = (int) (6 * density);
+                duaCard.setLayoutParams(lpDua);
             }
         }
     }
@@ -1196,6 +1230,12 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 prBg.setColor(0x78064E3B);
                 prBg.setStroke((int) (2.8f * density), currentPulseBorderColor);
                 prayerCard.setBackground(prBg);
+            } else if (widgetCursor == 2 && duaCard != null) {
+                GradientDrawable duaBg = new GradientDrawable();
+                duaBg.setCornerRadius(12f * density);
+                duaBg.setColor(0x780F3F3C);
+                duaBg.setStroke((int) (2.8f * density), currentPulseBorderColor);
+                duaCard.setBackground(duaBg);
             }
         }
     }
@@ -1259,6 +1299,21 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         prayerCard.animate().cancel();
         prayerCard.animate().scaleX(prayerSelected ? 1.04f : 1.0f).scaleY(prayerSelected ? 1.04f : 1.0f)
                 .setDuration(180L).setInterpolator(overshoot).start();
+
+        if (duaCard != null) {
+            boolean duaSelected = (currentZone == ZONE_WIDGETS && widgetCursor == 2);
+            GradientDrawable duaBg = new GradientDrawable();
+            duaBg.setCornerRadius(12f * density);
+            duaBg.setColor(duaSelected ? 0x780F3F3C : 0x3D06281E);
+            duaBg.setStroke(
+                    (int) ((duaSelected ? 2.8f : 1.0f) * density),
+                    duaSelected ? currentPulseBorderColor : 0x5514B8A6
+            );
+            duaCard.setBackground(duaBg);
+            duaCard.animate().cancel();
+            duaCard.animate().scaleX(duaSelected ? 1.04f : 1.0f).scaleY(duaSelected ? 1.04f : 1.0f)
+                    .setDuration(180L).setInterpolator(overshoot).start();
+        }
 
         if (appAdapter != null) {
             int targetPos = (currentZone == ZONE_GRID) ? gridCursor : -1;
@@ -1329,6 +1384,18 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 showFootballScheduleDialog();
             }
         });
+
+        if (duaCard != null) {
+            duaCard.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    currentZone = ZONE_WIDGETS;
+                    widgetCursor = 2;
+                    renderCursorHighlights();
+                    showDailyDuaDialog(currentCardDua);
+                }
+            });
+        }
         if (runningTextContainer != null) {
             runningTextContainer.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -1379,7 +1446,10 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         mainHandler.post(clockTickRunnable);
 
         mainHandler.removeCallbacks(footballRotateRunnable);
+        mainHandler.removeCallbacks(duaRotateRunnable);
         mainHandler.postDelayed(footballRotateRunnable, 6000L);
+        mainHandler.removeCallbacks(duaRotateRunnable);
+        mainHandler.postDelayed(duaRotateRunnable, 10000L);
 
         mainHandler.removeCallbacks(skyRefreshRunnable);
         mainHandler.postDelayed(skyRefreshRunnable, 15 * 60 * 1000L);
@@ -1620,18 +1690,27 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                     clampGridCursor();
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                if (widgetCursor == 0 && prayerCard.getVisibility() == View.VISIBLE) {
+                if (widgetCursor == 2) {
+                    rotateDuaCard();
+                    Toast.makeText(this, "Doa & Lafadz berikutnya", Toast.LENGTH_SHORT).show();
+                } else if (widgetCursor == 0 && prayerCard.getVisibility() == View.VISIBLE) {
                     widgetCursor = 1;
                 } else if (widgetCursor == 0) {
                     rotateFootballMatchCard();
                     Toast.makeText(this, "Match LiveScore berikutnya", Toast.LENGTH_SHORT).show();
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_CHANNEL_DOWN) {
-                currentZone = ZONE_GRID;
-                clampGridCursor();
-                appGrid.scrollToPosition(gridCursor);
+                if (widgetCursor == 2 && footballCard.getVisibility() == View.VISIBLE) {
+                    widgetCursor = 0;
+                } else {
+                    currentZone = ZONE_GRID;
+                    clampGridCursor();
+                    appGrid.scrollToPosition(gridCursor);
+                }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_CHANNEL_UP) {
-                if (!activeTopBarPills.isEmpty()) {
+                if (widgetCursor == 0 && duaCard != null && duaCard.getVisibility() == View.VISIBLE) {
+                    widgetCursor = 2;
+                } else if (!activeTopBarPills.isEmpty()) {
                     currentZone = ZONE_TOP_BAR;
                     topBarCursor = activeTopBarPills.size() - 1;
                 }
@@ -1688,7 +1767,9 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 }
             }
         } else if (currentZone == ZONE_WIDGETS) {
-            if (widgetCursor == 0 && footballCard.getVisibility() == View.VISIBLE) {
+            if (widgetCursor == 2 && duaCard != null && duaCard.getVisibility() == View.VISIBLE) {
+                showDailyDuaDialog(currentCardDua);
+            } else if (widgetCursor == 0 && footballCard.getVisibility() == View.VISIBLE) {
                 showFootballScheduleDialog();
             } else if (prayerCard.getVisibility() == View.VISIBLE) {
                 showCirebonPrayerDetailDialog();
@@ -4652,7 +4733,28 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
     // ADDON DOA SEHARI-HARI & LAFADZ AL-QUR'AN DENGAN SUARA
     // =========================================================================
 
+    private void rotateDuaCard() {
+        if (duaManager == null || duaCard == null) return;
+        DailyDuaManager.DuaItem item = duaManager.getNextRotatedItem();
+        if (item == null) return;
+        currentCardDua = item;
+        if (duaCardTitle != null) {
+            String tag = DailyDuaManager.CAT_QURAN.equals(item.category) ? "AL-QUR'AN" : "DOA HARIAN";
+            duaCardTitle.setText(tag + " | " + item.title);
+        }
+        if (duaCardArabic != null) {
+            duaCardArabic.setText(item.arabicText);
+        }
+        if (duaCardMeaning != null) {
+            duaCardMeaning.setText(item.indonesianMeaning);
+        }
+    }
+
     private void showDailyDuaDialog() {
+        showDailyDuaDialog(null);
+    }
+
+    private void showDailyDuaDialog(final DailyDuaManager.DuaItem initialItem) {
         if (duaManager == null) {
             duaManager = new DailyDuaManager();
         }
@@ -4803,7 +4905,12 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         root.addView(listScroll);
 
         final DailyDuaManager.DuaItem[] currentSelected = new DailyDuaManager.DuaItem[1];
-        final String[] currentCategory = new String[]{DailyDuaManager.CAT_DOA};
+        final String[] currentCategory = new String[]{
+                (initialItem != null && DailyDuaManager.CAT_QURAN.equals(initialItem.category))
+                        ? DailyDuaManager.CAT_QURAN
+                        : DailyDuaManager.CAT_DOA
+        };
+        final DailyDuaManager.DuaItem[] pendingInitial = new DailyDuaManager.DuaItem[]{initialItem};
 
         final DailyDuaManager.OnAudioStateListener audioListener = new DailyDuaManager.OnAudioStateListener() {
             @Override
@@ -4851,7 +4958,17 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 listContainer.removeAllViews();
                 List<DailyDuaManager.DuaItem> items = duaManager.getItemsByCategory(currentCategory[0]);
                 if (!items.isEmpty()) {
-                    currentSelected[0] = items.get(0);
+                    DailyDuaManager.DuaItem chosen = items.get(0);
+                    if (pendingInitial[0] != null) {
+                        for (DailyDuaManager.DuaItem cand : items) {
+                            if (cand.id.equals(pendingInitial[0].id)) {
+                                chosen = cand;
+                                break;
+                            }
+                        }
+                        pendingInitial[0] = null;
+                    }
+                    currentSelected[0] = chosen;
                     updateDetailCard.run();
                 }
 
