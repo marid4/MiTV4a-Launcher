@@ -776,6 +776,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
 
         prayerCard.setVisibility(config.showPrayerTimes ? View.VISIBLE : View.GONE);
         footballCard.setVisibility(config.showFootballSchedule ? View.VISIBLE : View.GONE);
+        if (duaCard != null) duaCard.setVisibility(config.showDailyDuaCard ? View.VISIBLE : View.GONE);
 
         rebuildActiveTopBarList();
         renderCursorHighlights();
@@ -1747,11 +1748,14 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
     }
 
     private boolean isAnyWidgetVisible() {
-        return footballCard.getVisibility() == View.VISIBLE || prayerCard.getVisibility() == View.VISIBLE;
+        return footballCard.getVisibility() == View.VISIBLE
+                || prayerCard.getVisibility() == View.VISIBLE
+                || (duaCard != null && duaCard.getVisibility() == View.VISIBLE);
     }
 
     private int getFirstVisibleWidgetIndex() {
         if (footballCard.getVisibility() == View.VISIBLE) return 0;
+        if (duaCard != null && duaCard.getVisibility() == View.VISIBLE) return 2;
         return 1;
     }
 
@@ -3994,6 +3998,11 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         items.add(new IconMenuItem("TV", 0xFF60A5FA,
                 "Setting TV / Additional Setting TV",
                 "Buka pengaturan sistem TV, Display, Suara, Wi-Fi, & Default Home"));
+        items.add(new IconMenuItem("CRD", 0xFF06B6D4,
+                "Opsi ON/OFF Card Layar (Sholat, Live Score, Doa)",
+                "Sholat: " + (config.showPrayerTimes ? "ON" : "OFF")
+                        + " | Live Score: " + (config.showFootballSchedule ? "ON" : "OFF")
+                        + " | Doa Harian: " + (config.showDailyDuaCard ? "ON" : "OFF")));
         items.add(new IconMenuItem("UPD", 0xFF34D399,
                 "Cek Update & Update Otomatis GitHub",
                 "Repo: " + config.githubRepoSlug + " | Versi " + AppUpdateManager.getCurrentVersionName(this)));
@@ -4030,9 +4039,52 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                         showTvAdditionalSettingsDialog();
                         break;
                     case 6:
+                        showCardVisibilitySettingsDialog();
+                        break;
+                    case 7:
                         showGithubUpdateSettingsDialog();
                         break;
                 }
+            }
+        });
+    }
+
+    private void showCardVisibilitySettingsDialog() {
+        List<IconMenuItem> cards = new ArrayList<>();
+        cards.add(new IconMenuItem("SHL", config.showPrayerTimes ? 0xFF10B981 : 0xFF64748B,
+                "Card Jadwal Sholat: " + (config.showPrayerTimes ? "ON (TAMPIL)" : "OFF (SEMBUNYI)"),
+                "Tampilkan atau sembunyikan kartu jadwal sholat & pill hitung mundur di layar"));
+        cards.add(new IconMenuItem("LVS", config.showFootballSchedule ? 0xFF38BDF8 : 0xFF64748B,
+                "Card Live Score / Jadwal Bola: " + (config.showFootballSchedule ? "ON (TAMPIL)" : "OFF (SEMBUNYI)"),
+                "Tampilkan atau sembunyikan kartu jadwal bola & MotoGP ESPN di pojok kanan bawah"));
+        cards.add(new IconMenuItem("DOA", config.showDailyDuaCard ? 0xFF14B8A6 : 0xFF64748B,
+                "Card Doa Harian & Al-Qur'an: " + (config.showDailyDuaCard ? "ON (TAMPIL)" : "OFF (SEMBUNYI)"),
+                "Tampilkan atau sembunyikan kartu doa harian di atas kartu jadwal bola"));
+
+        showIconMenuDialog("Opsi ON/OFF Card Layar", cards, new OnIconMenuClickListener() {
+            @Override
+            public void onItemClick(int which, AlertDialog d) {
+                if (which == 0) {
+                    config.showPrayerTimes = !config.showPrayerTimes;
+                    Config.saveUserPref(MainActivity.this, "pref_show_prayer", config.showPrayerTimes);
+                    Toast.makeText(MainActivity.this,
+                            "Card Jadwal Sholat: " + (config.showPrayerTimes ? "ON" : "OFF"),
+                            Toast.LENGTH_SHORT).show();
+                } else if (which == 1) {
+                    config.showFootballSchedule = !config.showFootballSchedule;
+                    Config.saveUserPref(MainActivity.this, "pref_show_football", config.showFootballSchedule);
+                    Toast.makeText(MainActivity.this,
+                            "Card Live Score / Bola: " + (config.showFootballSchedule ? "ON" : "OFF"),
+                            Toast.LENGTH_SHORT).show();
+                } else if (which == 2) {
+                    config.showDailyDuaCard = !config.showDailyDuaCard;
+                    Config.saveUserPref(MainActivity.this, "pref_show_daily_dua", config.showDailyDuaCard);
+                    Toast.makeText(MainActivity.this,
+                            "Card Doa Harian: " + (config.showDailyDuaCard ? "ON" : "OFF"),
+                            Toast.LENGTH_SHORT).show();
+                }
+                setupSidebarLayoutAndStyle();
+                showCardVisibilitySettingsDialog();
             }
         });
     }
@@ -4058,7 +4110,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 "Addon AdGuard Home & DNS (" + AdGuardDnsManager.DNS_PRESET_NAMES[config.dnsPresetIndex] + ")",
                 "Pantau & kontrol AdGuard Home, pilih Private DNS & tes ping DNS"));
         addons.add(new IconMenuItem("DOA", 0xFF14B8A6,
-                "Addon Doa Sehari-hari & Lafadz Al-Qur'an",
+                "Addon Doa Sehari-hari & Lafadz Al-Qur'an (" + (config.showDailyDuaCard ? "TAMPIL" : "SEMBUNYI") + ")",
                 "Bacaan doa harian & ayat Al-Qur'an pilihan lengkap dengan teks Arab, arti & suara"));
 
         showIconMenuDialog("Addon Crb Launcher", addons, new OnIconMenuClickListener() {
