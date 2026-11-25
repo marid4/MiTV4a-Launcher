@@ -86,6 +86,7 @@ public final class Config {
 
     // Modifikasi 3: Jadwal Match Football Real dari LiveScore.mobi
     public boolean showFootballSchedule = true;
+    public boolean showDailyDuaCard = true;
     public boolean footballOnlineSync = true;
     public int footballRotateSeconds = 7;
     public String footballFilterSlug = "ALL";
@@ -175,6 +176,7 @@ public final class Config {
         cfg.columns = clamp(prefs.getInt("pref_columns_left", 1), 1, 4);
         cfg.showPrayerTimes = prefs.getBoolean("pref_show_prayer", cfg.showPrayerTimes);
         cfg.showFootballSchedule = prefs.getBoolean("pref_show_football", cfg.showFootballSchedule);
+        cfg.showDailyDuaCard = prefs.getBoolean("pref_show_daily_dua", true);
         cfg.showWeatherKaryaMulya = prefs.getBoolean("pref_show_weather", true);
         cfg.enableAdzanSound = prefs.getBoolean("pref_enable_adzan_sound", true);
         cfg.customAdzanPath = prefs.getString("pref_custom_adzan_path", "");
@@ -310,6 +312,7 @@ public final class Config {
             if (obj.has("show_prayer_times")) cfg.showPrayerTimes = obj.optBoolean("show_prayer_times", cfg.showPrayerTimes);
             if (obj.has("prayer_city_name")) cfg.prayerCityName = obj.optString("prayer_city_name", cfg.prayerCityName);
             if (obj.has("show_football_schedule")) cfg.showFootballSchedule = obj.optBoolean("show_football_schedule", cfg.showFootballSchedule);
+            if (obj.has("show_daily_dua_card")) cfg.showDailyDuaCard = obj.optBoolean("show_daily_dua_card", cfg.showDailyDuaCard);
 
             JSONArray dockArr = obj.optJSONArray("dock_apps");
             if (dockArr != null) {
