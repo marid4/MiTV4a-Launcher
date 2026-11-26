@@ -133,6 +133,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
     private LinearLayout duaCard;
     private TextView duaCardTitle;
     private TextView duaCardArabic;
+    private TextView duaCardLatin;
     private TextView duaCardMeaning;
     private DailyDuaManager.DuaItem currentCardDua;
     private TextView footballLeagueTitle;
@@ -366,6 +367,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         duaCard = findViewById(R.id.dua_card);
         duaCardTitle = findViewById(R.id.dua_card_title);
         duaCardArabic = findViewById(R.id.dua_card_arabic);
+        duaCardLatin = findViewById(R.id.dua_card_latin);
         duaCardMeaning = findViewById(R.id.dua_card_meaning);
         footballLeagueTitle = findViewById(R.id.football_league_title);
         footballStatusBadge = findViewById(R.id.football_status_badge);
@@ -585,7 +587,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
             }
             if (duaCard != null && duaCard.getParent() instanceof android.widget.RelativeLayout) {
                 android.widget.RelativeLayout.LayoutParams lpDua = new android.widget.RelativeLayout.LayoutParams(
-                        (int) (345 * density), ViewGroup.LayoutParams.WRAP_CONTENT);
+                        (int) (420 * density), ViewGroup.LayoutParams.WRAP_CONTENT);
                 lpDua.addRule(android.widget.RelativeLayout.ABOVE, R.id.football_card);
                 lpDua.addRule(android.widget.RelativeLayout.ALIGN_PARENT_RIGHT);
                 lpDua.bottomMargin = (int) (6 * density);
@@ -4797,8 +4799,11 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         if (duaCardArabic != null) {
             duaCardArabic.setText(item.arabicText);
         }
+        if (duaCardLatin != null) {
+            duaCardLatin.setText(item.latinText);
+        }
         if (duaCardMeaning != null) {
-            duaCardMeaning.setText(item.indonesianMeaning);
+            duaCardMeaning.setText("Artinya: \"" + item.indonesianMeaning + "\"");
         }
     }
 
