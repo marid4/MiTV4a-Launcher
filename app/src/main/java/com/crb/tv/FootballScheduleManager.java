@@ -44,6 +44,39 @@ public final class FootballScheduleManager {
             "UEFA Europa League"
     };
 
+    public static final String[] FAV_EURO_TEAMS = new String[]{
+            "Man United", "Liverpool", "Arsenal", "Man City", "Chelsea",
+            "Real Madrid", "Barcelona", "Inter Milan", "AC Milan", "Juventus",
+            "Bayern Munich", "PSG"
+    };
+
+    public static final String[] FAV_EURO_SLUGS = new String[]{
+            "eng.1", "eng.1", "eng.1", "eng.1", "eng.1",
+            "esp.1", "esp.1", "ita.1", "ita.1", "ita.1",
+            "ger.1", "fra.1"
+    };
+
+    public static final String[] FAV_INDO_TEAMS = new String[]{
+            "Persib", "Persija", "Persebaya", "Bali United", "Dewa United",
+            "Madura United", "PSM Makassar", "Borneo FC", "Arema FC", "Persita"
+    };
+
+    public static final class FifaRankRow {
+        public final int rank;
+        public final String country;
+        public final String points;
+        public final String delta;
+
+        public FifaRankRow(int rank, String country, String points, String delta) {
+            this.rank = rank;
+            this.country = country;
+            this.points = points;
+            this.delta = delta;
+        }
+    }
+
+    private volatile String latestNewsSummary = "";
+
     public static final String[] STANDINGS_LEAGUE_SLUGS = new String[]{
             "eng.1",
             "esp.1",
@@ -620,5 +653,251 @@ public final class FootballScheduleManager {
                 "-", "-", "19:00 WIB",
                 nowMs + 14400000L, "[JADWAL] 19:00 WIB | ESPN", "JADWAL 19:00"
         ));
+    }
+
+    public String getNewsSummaryText() {
+        return latestNewsSummary;
+    }
+
+    public String fetchFootballNewsSync() {
+        String[] newsUrls = new String[]{
+                "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/news?limit=5",
+                "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/news?limit=4",
+                "https://site.api.espn.com/apis/site/v2/sports/soccer/idn.1/news?limit=3"
+        };
+        List<String> headlines = new ArrayList<>();
+        for (String urlStr : newsUrls) {
+            HttpURLConnection conn = null;
+            try {
+                conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(6000);
+                conn.setReadTimeout(6000);
+                conn.setRequestProperty("User-Agent", "CrbLauncher/3.9");
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    br.close();
+                    JSONObject root = new JSONObject(sb.toString());
+                    JSONArray articles = root.optJSONArray("articles");
+                    if (articles != null) {
+                        for (int i = 0; i < articles.length(); i++) {
+                            JSONObject art = articles.optJSONObject(i);
+                            if (art == null) continue;
+                            String hl = sanitizeAscii(art.optString("headline", ""));
+                            if (!hl.isEmpty() && !headlines.contains(hl)) {
+                                headlines.add(hl);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }
+        if (headlines.isEmpty()) {
+            latestNewsSummary = "Berita Bola ESPN: Update Jadwal Premier League, Liga Champions & BRI Liga 1 tersedia di Card Bola";
+        } else {
+            StringBuilder out = new StringBuilder("Berita Bola ESPN: ");
+            int limit = Math.min(8, headlines.size());
+            for (int i = 0; i < limit; i++) {
+                if (i > 0) out.append("  *  ");
+                out.append(headlines.get(i));
+            }
+            latestNewsSummary = out.toString();
+        }
+        return latestNewsSummary;
+    }
+
+    public List<FootballMatch> fetchLeagueWindowMatchesSync(String leagueName, String leagueSlug, String group, int daysBack, int daysAhead) {
+        List<FootballMatch> out = new ArrayList<>();
+        HttpURLConnection conn = null;
+        try {
+            SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd", Locale.US);
+            fmt.setTimeZone(TimeZone.getTimeZone("GMT+7"));
+            long now = System.currentTimeMillis();
+            String start = fmt.format(new Date(now - daysBack * 86400000L));
+            String end = fmt.format(new Date(now + daysAhead * 86400000L));
+            String urlStr = "https://site.api.espn.com/apis/site/v2/sports/soccer/"
+                    + leagueSlug + "/scoreboard?dates=" + start + "-" + end;
+            conn = (HttpURLConnection) new URL(urlStr).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(6500);
+            conn.setReadTimeout(6500);
+            conn.setRequestProperty("User-Agent", "CrbLauncher/3.9");
+            if (conn.getResponseCode() == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                JSONObject root = new JSONObject(sb.toString());
+                JSONArray events = root.optJSONArray("events");
+                if (events != null) {
+                    SimpleDateFormat isoFmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US);
+                    isoFmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    SimpleDateFormat wibFmt = new SimpleDateFormat("EEE d MMM HH:mm", Locale.US);
+                    wibFmt.setTimeZone(TimeZone.getTimeZone("GMT+7"));
+                    for (int i = 0; i < events.length(); i++) {
+                        JSONObject ev = events.optJSONObject(i);
+                        if (ev == null) continue;
+                        JSONArray comps = ev.optJSONArray("competitions");
+                        if (comps == null || comps.length() == 0) continue;
+                        JSONObject comp = comps.optJSONObject(0);
+                        JSONArray competitors = comp.optJSONArray("competitors");
+                        if (competitors == null || competitors.length() < 2) continue;
+
+                        String hName = "", aName = "", hLogo = "", aLogo = "", hScore = "-", aScore = "-";
+                        for (int c = 0; c < competitors.length(); c++) {
+                            JSONObject tmObj = competitors.optJSONObject(c);
+                            if (tmObj == null) continue;
+                            String ha = tmObj.optString("homeAway", "");
+                            JSONObject team = tmObj.optJSONObject("team");
+                            String nm = team != null ? sanitizeAscii(team.optString("shortDisplayName", team.optString("displayName", ""))) : "";
+                            String lg = team != null ? team.optString("logo", "") : "";
+                            String sc = sanitizeAscii(tmObj.optString("score", "-"));
+                            if ("home".equalsIgnoreCase(ha)) {
+                                hName = nm; hLogo = lg; hScore = sc.isEmpty() ? "-" : sc;
+                            } else {
+                                aName = nm; aLogo = lg; aScore = sc.isEmpty() ? "-" : sc;
+                            }
+                        }
+
+                        JSONObject statusObj = ev.optJSONObject("status");
+                        JSONObject statusType = statusObj != null ? statusObj.optJSONObject("type") : null;
+                        String state = statusType != null ? statusType.optString("state", "pre") : "pre";
+                        String shortDetail = statusType != null ? sanitizeAscii(statusType.optString("shortDetail", "")) : "";
+                        String cat = "UPCOMING";
+                        if ("in".equalsIgnoreCase(state)) cat = "LIVE";
+                        else if ("post".equalsIgnoreCase(state)) cat = "RESULT";
+
+                        long epochMs = 0L;
+                        String wibStr = shortDetail;
+                        String dateIso = ev.optString("date", "");
+                        if (dateIso.length() >= 16) {
+                            try {
+                                Date d = isoFmt.parse(dateIso.substring(0, 16));
+                                if (d != null) {
+                                    epochMs = d.getTime();
+                                    wibStr = wibFmt.format(d) + " WIB";
+                                }
+                            } catch (Exception ignored) {
+                            }
+                        }
+
+                        out.add(new FootballMatch(
+                                leagueName, leagueSlug, group, cat,
+                                hName, aName, hLogo, aLogo, hScore, aScore,
+                                shortDetail, epochMs, wibStr,
+                                "LIVE".equals(cat) ? "LIVE" : ("RESULT".equals(cat) ? "FT" : wibStr)
+                        ));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+        return out;
+    }
+
+    public List<FootballMatch> filterMatchesByTeam(List<FootballMatch> source, String teamKeyword) {
+        List<FootballMatch> out = new ArrayList<>();
+        if (source == null || teamKeyword == null) return out;
+        String kw = teamKeyword.toLowerCase(Locale.US).trim();
+        for (FootballMatch m : source) {
+            if (m.homeTeam.toLowerCase(Locale.US).contains(kw)
+                    || m.awayTeam.toLowerCase(Locale.US).contains(kw)) {
+                out.add(m);
+            }
+        }
+        return out;
+    }
+
+    public synchronized List<FootballMatch> getUclMatches() {
+        List<FootballMatch> out = new ArrayList<>();
+        for (FootballMatch m : matches) {
+            if (FILTER_UCL.equals(m.leagueGroup) || "uefa.champions".equals(m.leagueSlug)) {
+                out.add(m);
+            }
+        }
+        return out;
+    }
+
+    public List<FifaRankRow> fetchFifaRankingsSync(boolean aseanOnly) {
+        List<FifaRankRow> worldTop = new ArrayList<>();
+        List<FifaRankRow> aseanList = new ArrayList<>();
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/rankings");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(6000);
+            conn.setReadTimeout(6000);
+            conn.setRequestProperty("User-Agent", "CrbLauncher/3.9");
+            if (conn.getResponseCode() == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                JSONObject root = new JSONObject(sb.toString());
+                JSONArray rankings = root.optJSONArray("rankings");
+                if (rankings != null && rankings.length() > 0) {
+                    JSONObject r0 = rankings.optJSONObject(0);
+                    JSONArray entries = r0 != null ? r0.optJSONArray("ranks") : null;
+                    if (entries != null) {
+                        for (int i = 0; i < entries.length(); i++) {
+                            JSONObject e = entries.optJSONObject(i);
+                            if (e == null) continue;
+                            int rk = e.optInt("current", i + 1);
+                            int prev = e.optInt("previous", rk);
+                            int diff = prev - rk;
+                            String delta = diff > 0 ? ("+" + diff) : (diff < 0 ? String.valueOf(diff) : "-");
+                            String pts = String.valueOf((int) Math.round(e.optDouble("points", 0)));
+                            JSONObject tm = e.optJSONObject("team");
+                            String name = tm != null ? sanitizeAscii(tm.optString("name", tm.optString("nickname", ""))) : "";
+                            if (name.isEmpty()) continue;
+                            if (rk <= 10) {
+                                worldTop.add(new FifaRankRow(rk, name, pts, delta));
+                            }
+                            String low = name.toLowerCase(Locale.US);
+                            if (low.contains("thailand") || low.contains("vietnam")
+                                    || low.contains("indonesia") || low.contains("malaysia")
+                                    || low.contains("singapore")) {
+                                aseanList.add(new FifaRankRow(rk, name, pts, delta));
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+
+        if (worldTop.isEmpty()) {
+            worldTop.add(new FifaRankRow(1, "Spain", "2004", "-"));
+            worldTop.add(new FifaRankRow(2, "Argentina", "1966", "-"));
+            worldTop.add(new FifaRankRow(3, "France", "1951", "-"));
+            worldTop.add(new FifaRankRow(4, "England", "1939", "-"));
+            worldTop.add(new FifaRankRow(5, "Portugal", "1801", "+1"));
+            worldTop.add(new FifaRankRow(6, "Brazil", "1801", "+1"));
+            worldTop.add(new FifaRankRow(7, "Morocco", "1791", "-2"));
+            worldTop.add(new FifaRankRow(8, "Belgium", "1790", "-"));
+            worldTop.add(new FifaRankRow(9, "Netherlands", "1774", "-"));
+            worldTop.add(new FifaRankRow(10, "Colombia", "1736", "-"));
+        }
+        if (aseanList.isEmpty()) {
+            aseanList.add(new FifaRankRow(90, "Thailand", "1258", "-"));
+            aseanList.add(new FifaRankRow(99, "Vietnam", "1228", "-"));
+            aseanList.add(new FifaRankRow(116, "Indonesia", "1167", "-"));
+            aseanList.add(new FifaRankRow(133, "Malaysia", "1103", "-"));
+            aseanList.add(new FifaRankRow(149, "Singapore", "1057", "-"));
+        }
+        return aseanOnly ? aseanList : worldTop;
     }
 }
