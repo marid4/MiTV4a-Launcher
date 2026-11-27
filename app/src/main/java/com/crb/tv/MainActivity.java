@@ -821,7 +821,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
 
         if (config.runningTextIncludePrayerWeather) {
             if (todayPrayerTimes != null) {
-                fullText.append("   |   Jadwal Sholat Cirebon Hari Ini: Imsak ")
+                fullText.append("   |   Jadwal Sholat " + config.prayerCityName + ": Imsak ")
                         .append(todayPrayerTimes.getImsak())
                         .append(", Subuh ").append(todayPrayerTimes.getSubuh())
                         .append(", Dzuhur ").append(todayPrayerTimes.getDzuhur())
@@ -834,6 +834,12 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 if (w != null) {
                     fullText.append("   |   Cuaca ").append(w.toCompactSummary());
                 }
+            }
+        }
+        if (config.runningTextIncludeFootballNews && footballManager != null) {
+            String news = footballManager.getNewsSummaryText();
+            if (news != null && !news.trim().isEmpty()) {
+                fullText.append("   |   ").append(news.trim());
             }
         }
         runningTextView.setRunningText(fullText.toString());
@@ -908,7 +914,8 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 "1. Tampilkan Running Text di Layar Bawah: " + (config.showRunningText ? "AKTIF (ON)" : "SEMBUNYI (OFF)"),
                 "2. Kecepatan Gerak Teks: " + speedName + " (Klik untuk Ubah)",
                 "3. Sertakan Info Jadwal Sholat & Cuaca di Ujung Teks: " + (config.runningTextIncludePrayerWeather ? "ON" : "OFF"),
-                "4. Kembali ke Edit Teks Manual"
+                "4. Sertakan Berita Bola ESPN di Running Text: " + (config.runningTextIncludeFootballNews ? "ON" : "OFF"),
+                "5. Kembali ke Edit Teks Manual"
         };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
@@ -931,6 +938,11 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                             updateRunningTextBar();
                             showRunningTextOptionsDialog();
                         } else if (which == 3) {
+                            config.runningTextIncludeFootballNews = !config.runningTextIncludeFootballNews;
+                            Config.saveUserPref(MainActivity.this, "pref_rt_football_news", config.runningTextIncludeFootballNews);
+                            updateRunningTextBar();
+                            showRunningTextOptionsDialog();
+                        } else if (which == 4) {
                             showEditRunningTextDialog();
                         }
                     }
@@ -2076,7 +2088,11 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         bgExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                weatherManager.fetchKaryaMulyaWeatherSync();
+                weatherManager.fetchWeatherForLocationSync(
+                        config.prayerCityName,
+                        config.prayerLatitude,
+                        config.prayerLongitude
+                );
                 mainHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -2085,7 +2101,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                         if (showToast) {
                             Toast.makeText(
                                     MainActivity.this,
-                                    "Cuaca Karya Mulya Kota Cirebon diperbarui",
+                                    "Cuaca " + config.prayerCityName + " diperbarui",
                                     Toast.LENGTH_SHORT
                             ).show();
                         }
@@ -2111,7 +2127,7 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
         container.setBackgroundColor(Color.TRANSPARENT);
 
         TextView header = new TextView(this);
-        header.setText("CUACA REAL-TIME KARYA MULYA, KOTA CIREBON");
+        header.setText("CUACA REAL-TIME: " + config.prayerCityName.toUpperCase(Locale.US));
         header.setTextColor(0xFF38BDF8);
         header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f);
         header.setTypeface(Typeface.DEFAULT_BOLD);
@@ -2133,6 +2149,12 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                         syncWeatherKaryaMulyaAsync(true);
                     }
                 })
+                .setNeutralButton("Ganti Kota Indonesia", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        showCirebonSubdistrictPicker();
+                    }
+                })
                 .setNegativeButton("Tutup", null);
         showTranslucentDialog(builder);
     }
@@ -2146,10 +2168,12 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
             @Override
             public void run() {
                 footballManager.refreshOnlineSchedulesSync(config.footballLeagues);
+                footballManager.fetchFootballNewsSync();
                 mainHandler.post(new Runnable() {
                     @Override
                     public void run() {
                         rotateFootballMatchCard();
+                        updateRunningTextBar();
                         if (showFeedbackToast) {
                             int liveCount = footballManager.countLive();
                             int motogpCount = footballManager.countByGroup(FootballScheduleManager.FILTER_MOTOGP);
@@ -3376,35 +3400,83 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
                 "Kabupaten Cirebon (Sumber / Kedawung / Plered)",
                 "Kabupaten Indramayu",
                 "Kabupaten Kuningan",
-                "Kabupaten Majalengka"
+                "Kabupaten Majalengka",
+                "Kota Bandung (Jawa Barat)",
+                "DKI Jakarta (Jakarta Pusat)",
+                "Kota Bogor (Jawa Barat)",
+                "Kota Depok (Jawa Barat)",
+                "Kota Bekasi (Jawa Barat)",
+                "Kota Tangerang (Banten)",
+                "Kota Semarang (Jawa Tengah)",
+                "Kota Surakarta / Solo (Jawa Tengah)",
+                "DI Yogyakarta",
+                "Kota Surabaya (Jawa Timur)",
+                "Kota Malang (Jawa Timur)",
+                "Kota Banda Aceh (Aceh)",
+                "Kota Medan (Sumatera Utara)",
+                "Kota Padang (Sumatera Barat)",
+                "Kota Pekanbaru (Riau)",
+                "Kota Palembang (Sumatera Selatan)",
+                "Kota Bandar Lampung (Lampung)",
+                "Kota Denpasar (Bali - WITA)",
+                "Kota Makassar (Sulawesi Selatan - WITA)",
+                "Kota Balikpapan (Kalimantan Timur - WITA)",
+                "Kota Manado (Sulawesi Utara - WITA)",
+                "Kota Jayapura (Papua - WIT)"
         };
         final double[][] coords = new double[][]{
-                {-6.7358, 108.5385},
-                {-6.7063, 108.5570},
-                {-6.7550, 108.5460},
-                {-6.7220, 108.5680},
-                {-6.7603, 108.4831},
-                {-6.3276, 108.3249},
-                {-6.9761, 108.4841},
-                {-6.8364, 108.2278}
+                {-6.7358, 108.5385, 7},
+                {-6.7063, 108.5570, 7},
+                {-6.7550, 108.5460, 7},
+                {-6.7220, 108.5680, 7},
+                {-6.7603, 108.4831, 7},
+                {-6.3276, 108.3249, 7},
+                {-6.9761, 108.4841, 7},
+                {-6.8364, 108.2278, 7},
+                {-6.9175, 107.6191, 7},
+                {-6.2088, 106.8456, 7},
+                {-6.5971, 106.8060, 7},
+                {-6.4025, 106.7942, 7},
+                {-6.2383, 106.9756, 7},
+                {-6.1702, 106.6403, 7},
+                {-6.9667, 110.4167, 7},
+                {-7.5755, 110.8243, 7},
+                {-7.7956, 110.3695, 7},
+                {-7.2575, 112.7521, 7},
+                {-7.9666, 112.6326, 7},
+                {5.5483, 95.3238, 7},
+                {3.5952, 98.6722, 7},
+                {-0.9471, 100.4172, 7},
+                {0.5071, 101.4478, 7},
+                {-2.9761, 104.7754, 7},
+                {-5.4292, 105.2610, 7},
+                {-8.6705, 115.2126, 8},
+                {-5.1477, 119.4327, 8},
+                {-1.2379, 116.8529, 8},
+                {1.4748, 124.8421, 8},
+                {-2.5916, 140.6690, 9}
         };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle("Pilih Wilayah Jadwal Sholat")
+                .setTitle("Pilih Kota Indonesia (Sholat & Cuaca)")
                 .setItems(names, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         config.prayerCityName = names[which];
                         config.prayerLatitude = coords[which][0];
                         config.prayerLongitude = coords[which][1];
+                        config.prayerTimezoneOffset = (int) coords[which][2];
                         Config.savePrayerLocation(
                                 MainActivity.this,
                                 config.prayerCityName,
                                 config.prayerLatitude,
                                 config.prayerLongitude
                         );
+                        android.content.SharedPreferences prefs = getSharedPreferences("crb_launcher_prefs", MODE_PRIVATE);
+                        prefs.edit().putInt("pref_prayer_tz_offset", config.prayerTimezoneOffset).apply();
                         recalculateCirebonPrayerTimes(true);
                         updateClockAndPrayerCountdown();
+                        syncWeatherKaryaMulyaAsync(true);
                     }
                 });
         showTranslucentDialog(builder);
@@ -3423,357 +3495,529 @@ public final class MainActivity extends Activity implements AppAdapter.OnAppInte
 
         LinearLayout rootDlg = new LinearLayout(this);
         rootDlg.setOrientation(LinearLayout.VERTICAL);
-        rootDlg.setPadding((int) (18 * density), (int) (14 * density), (int) (18 * density), (int) (10 * density));
+        rootDlg.setPadding((int) (12 * density), (int) (10 * density), (int) (12 * density), (int) (8 * density));
         rootDlg.setBackgroundColor(Color.TRANSPARENT);
 
-        TextView header = new TextView(this);
-        header.setText("ESPN SPORTS - MATCHES & TABLE (KLASEMEN)");
-        header.setTextColor(0xFFFBBF24);
-        header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f);
-        header.setTypeface(Typeface.DEFAULT_BOLD);
-        rootDlg.addView(header);
-
-        // Baris Tab: [ MATCHES ]  [ TABLE (KLASEMEN) ]  [ PILIH LIGA ]
-        LinearLayout tabRow = new LinearLayout(this);
-        tabRow.setOrientation(LinearLayout.HORIZONTAL);
-        tabRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams tabRowLp = new LinearLayout.LayoutParams(
+        LinearLayout topCtrl = new LinearLayout(this);
+        topCtrl.setOrientation(LinearLayout.HORIZONTAL);
+        topCtrl.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams tcLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tabRowLp.topMargin = (int) (8 * density);
-        tabRowLp.bottomMargin = (int) (8 * density);
-        tabRow.setLayoutParams(tabRowLp);
+        tcLp.bottomMargin = (int) (8 * density);
+        topCtrl.setLayoutParams(tcLp);
 
-        final TextView tabMatchesBtn = new TextView(this);
-        tabMatchesBtn.setText("MATCHES (" + footballManager.getActiveMatchCount() + ")");
-        tabMatchesBtn.setTextColor(0xFFFFFFFF);
-        tabMatchesBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
-        tabMatchesBtn.setTypeface(Typeface.DEFAULT_BOLD);
-        tabMatchesBtn.setPadding((int) (12 * density), (int) (6 * density), (int) (12 * density), (int) (6 * density));
-        tabMatchesBtn.setFocusable(true);
-        tabMatchesBtn.setClickable(true);
+        TextView titleTv = new TextView(this);
+        titleTv.setText("ESPN FOOTBALL HUB  |  WIB");
+        titleTv.setTextColor(0xFFFDE047);
+        titleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        titleTv.setTypeface(Typeface.DEFAULT_BOLD);
+        titleTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        topCtrl.addView(titleTv);
 
-        final TextView tabTableBtn = new TextView(this);
-        tabTableBtn.setText("TABLE (KLASEMEN)");
-        tabTableBtn.setTextColor(0xFFFFFFFF);
-        tabTableBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
-        tabTableBtn.setTypeface(Typeface.DEFAULT_BOLD);
-        tabTableBtn.setPadding((int) (12 * density), (int) (6 * density), (int) (12 * density), (int) (6 * density));
-        tabTableBtn.setFocusable(true);
-        tabTableBtn.setClickable(true);
-        LinearLayout.LayoutParams ttLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        ttLp.leftMargin = (int) (8 * density);
-        tabTableBtn.setLayoutParams(ttLp);
+        final TextView btnFavEuro = createGlassPillButton("Tim Eropa: " + config.favoriteEuroTeam, 0xFF38BDF8, density);
+        final TextView btnFavIndo = createGlassPillButton("Tim Liga 1: " + config.favoriteIndoTeam, 0xFF34D399, density);
+        final TextView btnRefresh = createGlassPillButton("Refresh ESPN", 0xFFFBBF24, density);
+        topCtrl.addView(btnFavEuro);
+        topCtrl.addView(btnFavIndo);
+        topCtrl.addView(btnRefresh);
+        rootDlg.addView(topCtrl);
 
-        final TextView leaguePickBtn = new TextView(this);
-        leaguePickBtn.setText(FootballScheduleManager.STANDINGS_LEAGUE_NAMES[selectedStandingsLeagueIdx]);
-        leaguePickBtn.setTextColor(0xFF7DD3FC);
-        leaguePickBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
-        leaguePickBtn.setTypeface(Typeface.DEFAULT_BOLD);
-        leaguePickBtn.setPadding((int) (10 * density), (int) (6 * density), (int) (10 * density), (int) (6 * density));
-        leaguePickBtn.setFocusable(true);
-        leaguePickBtn.setClickable(true);
-        LinearLayout.LayoutParams lpPick = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lpPick.leftMargin = (int) (8 * density);
-        leaguePickBtn.setLayoutParams(lpPick);
+        ScrollView vScroll = new ScrollView(this);
+        vScroll.setBackgroundColor(Color.TRANSPARENT);
+        LinearLayout.LayoutParams vsLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (int) (430 * density));
+        vScroll.setLayoutParams(vsLp);
 
-        tabRow.addView(tabMatchesBtn);
-        tabRow.addView(tabTableBtn);
-        tabRow.addView(leaguePickBtn);
-        rootDlg.addView(tabRow);
+        LinearLayout colsRow = new LinearLayout(this);
+        colsRow.setOrientation(LinearLayout.HORIZONTAL);
+        colsRow.setBaselineAligned(false);
+        vScroll.addView(colsRow);
+        rootDlg.addView(vScroll);
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Color.TRANSPARENT);
-        LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, (int) (310 * density));
-        scroll.setLayoutParams(scrollLp);
+        final LinearLayout col1 = createGlassDashboardColumn(density, true);
+        final LinearLayout col2 = createGlassDashboardColumn(density, true);
+        final LinearLayout col3 = createGlassDashboardColumn(density, true);
+        final LinearLayout col4 = createGlassDashboardColumn(density, true);
+        final LinearLayout col5 = createGlassDashboardColumn(density, false);
+        colsRow.addView(col1);
+        colsRow.addView(col2);
+        colsRow.addView(col3);
+        colsRow.addView(col4);
+        colsRow.addView(col5);
 
-        final LinearLayout contentList = new LinearLayout(this);
-        contentList.setOrientation(LinearLayout.VERTICAL);
-        contentList.setBackgroundColor(Color.TRANSPARENT);
-        scroll.addView(contentList);
-        rootDlg.addView(scroll);
-
-        final Runnable[] renderTabRef = new Runnable[1];
-        final boolean[] isTableMode = new boolean[]{startOnTableTab};
-
-        renderTabRef[0] = new Runnable() {
+        final Runnable loadDashboardData = new Runnable() {
             @Override
             public void run() {
-                GradientDrawable activeBg = new GradientDrawable();
-                activeBg.setCornerRadius(8f * density);
-                activeBg.setColor(0x990284C7);
-                activeBg.setStroke((int) (1.2f * density), 0xFFFFFFFF);
+                col1.removeAllViews();
+                col2.removeAllViews();
+                col3.removeAllViews();
+                col4.removeAllViews();
+                col5.removeAllViews();
+                addDashColHeader(col1, config.favoriteEuroTeam.toUpperCase(Locale.US), "ESPN", 0xFFFFFFFF, density);
+                addDashSubNote(col1, "Memuat jadwal & hasil...", 0xFF94A3B8, density);
+                addDashColHeader(col2, "KLASEMEN", getLeagueLabelBySlug(config.favoriteEuroLeagueSlug), 0xFF34D399, density);
+                addDashSubNote(col2, "Memuat klasemen...", 0xFF94A3B8, density);
+                addDashColHeader(col3, "LIGA CHAMPIONS", "Jadwal terdekat - WIB", 0xFF34D399, density);
+                addDashSubNote(col3, "Memuat Liga Champions...", 0xFF94A3B8, density);
+                addDashColHeader(col4, config.favoriteIndoTeam.toUpperCase(Locale.US), "Liga 1 BRI", 0xFF34D399, density);
+                addDashSubNote(col4, "Memuat Liga 1...", 0xFF94A3B8, density);
+                addDashColHeader(col5, "PERINGKAT FIFA", "Dunia", 0xFF34D399, density);
+                addDashSubNote(col5, "Memuat ranking FIFA...", 0xFF94A3B8, density);
 
-                GradientDrawable inactiveBg = new GradientDrawable();
-                inactiveBg.setCornerRadius(8f * density);
-                inactiveBg.setColor(0x441E293B);
-                inactiveBg.setStroke((int) (1f * density), 0x55FFFFFF);
-
-                tabMatchesBtn.setBackground(isTableMode[0] ? inactiveBg : activeBg);
-                tabTableBtn.setBackground(isTableMode[0] ? activeBg : inactiveBg);
-
-                GradientDrawable pickBg = new GradientDrawable();
-                pickBg.setCornerRadius(8f * density);
-                pickBg.setColor(0x440F172A);
-                pickBg.setStroke((int) (1f * density), 0x8838BDF8);
-                leaguePickBtn.setBackground(pickBg);
-                leaguePickBtn.setVisibility(isTableMode[0] ? View.VISIBLE : View.GONE);
-
-                contentList.removeAllViews();
-
-                if (!isTableMode[0]) {
-                    renderMatchesTabContent(contentList, density);
-                } else {
-                    renderStandingsTabContent(contentList, density);
-                }
-            }
-        };
-
-        tabMatchesBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isTableMode[0] = false;
-                renderTabRef[0].run();
-            }
-        });
-        tabTableBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isTableMode[0] = true;
-                renderTabRef[0].run();
-            }
-        });
-        leaguePickBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                AlertDialog.Builder pickBuilder = new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Pilih Liga Klasemen (ESPN Table)")
-                        .setItems(FootballScheduleManager.STANDINGS_LEAGUE_NAMES, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface d, int which) {
-                                selectedStandingsLeagueIdx = which;
-                                leaguePickBtn.setText(FootballScheduleManager.STANDINGS_LEAGUE_NAMES[which]);
-                                isTableMode[0] = true;
-                                renderTabRef[0].run();
-                            }
-                        });
-                showTranslucentDialog(pickBuilder);
-            }
-        });
-
-        renderTabRef[0].run();
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setView(rootDlg)
-                .setPositiveButton("Filter Liga & MotoGP", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        showFootballCategoryFilterDialog();
-                    }
-                })
-                .setNeutralButton("Refresh ESPN", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        syncFootballMatchesAsync(true);
-                    }
-                })
-                .setNegativeButton("Tutup", null);
-        showTranslucentDialog(builder);
-    }
-
-    private void renderMatchesTabContent(LinearLayout contentList, float density) {
-        List<FootballScheduleManager.FootballMatch> list = footballManager.getMatches();
-
-        TextView sub = new TextView(this);
-        sub.setText("Sumber: ESPN | Filter: " + footballManager.getFilterSlug()
-                + " | Live: " + footballManager.countLive()
-                + " | Update: " + footballManager.getLastSyncTimeWib() + " WIB");
-        sub.setTextColor(0xFF7DD3FC);
-        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
-        sub.setPadding(0, 0, 0, (int) (8 * density));
-        contentList.addView(sub);
-
-        for (int i = 0; i < list.size(); i++) {
-            FootballScheduleManager.FootballMatch m = list.get(i);
-
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.VERTICAL);
-            row.setPadding((int) (12 * density), (int) (8 * density), (int) (12 * density), (int) (8 * density));
-
-            GradientDrawable rowBg = new GradientDrawable();
-            rowBg.setCornerRadius(10f * density);
-            rowBg.setColor(i % 2 == 0 ? 0x441E293B : 0x360F172A);
-            if ("LIVE".equalsIgnoreCase(m.matchCategory)) {
-                rowBg.setStroke((int) (1.5f * density), 0xCCEF4444);
-            } else if ("RESULT".equalsIgnoreCase(m.matchCategory)) {
-                rowBg.setStroke((int) (1f * density), 0x9910B981);
-            } else {
-                rowBg.setStroke((int) (1f * density), 0x5560A5FA);
-            }
-            row.setBackground(rowBg);
-
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.bottomMargin = (int) (6 * density);
-            row.setLayoutParams(lp);
-
-            TextView leagueTv = new TextView(this);
-            leagueTv.setText(m.leagueName.toUpperCase(Locale.ROOT) + "   [" + m.statusBadge + "]");
-            if ("LIVE".equalsIgnoreCase(m.matchCategory)) {
-                leagueTv.setTextColor(0xFFF87171);
-            } else if ("RESULT".equalsIgnoreCase(m.matchCategory)) {
-                leagueTv.setTextColor(0xFF34D399);
-            } else {
-                leagueTv.setTextColor(0xFF38BDF8);
-            }
-            leagueTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
-            leagueTv.setTypeface(Typeface.DEFAULT_BOLD);
-            row.addView(leagueTv);
-
-            // Baris Logo Home + Nama Klub + Skor/VS + Logo Away
-            LinearLayout matchRow = new LinearLayout(this);
-            matchRow.setOrientation(LinearLayout.HORIZONTAL);
-            matchRow.setGravity(Gravity.CENTER_VERTICAL);
-            matchRow.setPadding(0, (int) (4 * density), 0, (int) (2 * density));
-
-            ImageView hLogo = new ImageView(this);
-            LinearLayout.LayoutParams hLp = new LinearLayout.LayoutParams((int) (24 * density), (int) (24 * density));
-            hLp.rightMargin = (int) (8 * density);
-            hLogo.setLayoutParams(hLp);
-            hLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            loadClubLogoIntoView(m.homeLogoUrl, hLogo);
-            matchRow.addView(hLogo);
-
-            TextView matchTv = new TextView(this);
-            matchTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            matchTv.setText(m.getDisplayHeadline());
-            matchTv.setTextColor(0xFFFFFFFF);
-            matchTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-            matchTv.setTypeface(Typeface.DEFAULT_BOLD);
-            matchRow.addView(matchTv);
-
-            if (m.awayLogoUrl != null && !m.awayLogoUrl.isEmpty()) {
-                ImageView aLogo = new ImageView(this);
-                LinearLayout.LayoutParams aLp = new LinearLayout.LayoutParams((int) (24 * density), (int) (24 * density));
-                aLp.leftMargin = (int) (8 * density);
-                aLogo.setLayoutParams(aLp);
-                aLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                loadClubLogoIntoView(m.awayLogoUrl, aLogo);
-                matchRow.addView(aLogo);
-            }
-
-            row.addView(matchRow);
-
-            TextView timeTv = new TextView(this);
-            timeTv.setText(m.kickoffWibFormatted);
-            timeTv.setTextColor(0xEEF1F5F9);
-            timeTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
-            row.addView(timeTv);
-
-            contentList.addView(row);
-        }
-    }
-
-    private void renderStandingsTabContent(final LinearLayout contentList, final float density) {
-        final String slug = FootballScheduleManager.STANDINGS_LEAGUE_SLUGS[selectedStandingsLeagueIdx];
-        final String leagueTitle = FootballScheduleManager.STANDINGS_LEAGUE_NAMES[selectedStandingsLeagueIdx];
-
-        final TextView loadingTv = new TextView(this);
-        loadingTv.setText("Memuat klasemen " + leagueTitle + " dari ESPN...");
-        loadingTv.setTextColor(0xFF7DD3FC);
-        loadingTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-        loadingTv.setPadding(0, (int) (12 * density), 0, (int) (12 * density));
-        contentList.addView(loadingTv);
-
-        bgExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                final List<FootballScheduleManager.StandingRow> rows =
-                        footballManager.fetchLeagueStandingsSync(slug);
-                mainHandler.post(new Runnable() {
+                bgExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        contentList.removeAllViews();
-                        if (rows.isEmpty()) {
-                            TextView emptyTv = new TextView(MainActivity.this);
-                            emptyTv.setText("Klasemen untuk " + leagueTitle + " belum tersedia saat ini.");
-                            emptyTv.setTextColor(0xFFFDE047);
-                            emptyTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-                            contentList.addView(emptyTv);
-                            return;
-                        }
+                        final List<FootballScheduleManager.FootballMatch> euroLeagueMatches =
+                                footballManager.fetchLeagueWindowMatchesSync(
+                                        getLeagueLabelBySlug(config.favoriteEuroLeagueSlug),
+                                        config.favoriteEuroLeagueSlug,
+                                        FootballScheduleManager.FILTER_TOP5, 25, 25);
+                        final List<FootballScheduleManager.FootballMatch> uclMatchesAll =
+                                footballManager.fetchLeagueWindowMatchesSync(
+                                        "Champions League", "uefa.champions",
+                                        FootballScheduleManager.FILTER_UCL, 14, 21);
+                        final List<FootballScheduleManager.FootballMatch> indoMatchesAll =
+                                footballManager.fetchLeagueWindowMatchesSync(
+                                        "Liga 1 BRI", "idn.1",
+                                        FootballScheduleManager.FILTER_INDONESIA, 25, 25);
 
-                        // Header Tabel Klasemen
-                        LinearLayout hdr = new LinearLayout(MainActivity.this);
-                        hdr.setOrientation(LinearLayout.HORIZONTAL);
-                        hdr.setGravity(Gravity.CENTER_VERTICAL);
-                        hdr.setPadding((int) (8 * density), (int) (6 * density), (int) (8 * density), (int) (6 * density));
-                        hdr.setBackgroundColor(0x550284C7);
-                        addStandingCell(hdr, "#", 0.55f, 0xFFFDE047, true, Gravity.CENTER);
-                        addStandingCell(hdr, "KLUB", 3.2f, 0xFFFDE047, true, Gravity.LEFT);
-                        addStandingCell(hdr, "MAIN", 0.7f, 0xFFFDE047, true, Gravity.CENTER);
-                        addStandingCell(hdr, "M/S/K", 1.15f, 0xFFFDE047, true, Gravity.CENTER);
-                        addStandingCell(hdr, "SG", 0.7f, 0xFFFDE047, true, Gravity.CENTER);
-                        addStandingCell(hdr, "PTS", 0.8f, 0xFFFDE047, true, Gravity.CENTER);
-                        contentList.addView(hdr);
+                        final List<FootballScheduleManager.StandingRow> euroStandings =
+                                footballManager.fetchLeagueStandingsSync(config.favoriteEuroLeagueSlug);
+                        final List<FootballScheduleManager.StandingRow> indoStandings =
+                                footballManager.fetchLeagueStandingsSync("idn.1");
+                        final List<FootballScheduleManager.FifaRankRow> fifaWorld =
+                                footballManager.fetchFifaRankingsSync(false);
+                        final List<FootballScheduleManager.FifaRankRow> fifaAsean =
+                                footballManager.fetchFifaRankingsSync(true);
 
-                        for (int i = 0; i < rows.size(); i++) {
-                            FootballScheduleManager.StandingRow r = rows.get(i);
-                            LinearLayout row = new LinearLayout(MainActivity.this);
-                            row.setOrientation(LinearLayout.HORIZONTAL);
-                            row.setGravity(Gravity.CENTER_VERTICAL);
-                            row.setPadding((int) (8 * density), (int) (5 * density), (int) (8 * density), (int) (5 * density));
-                            row.setBackgroundColor(i % 2 == 0 ? 0x331E293B : 0x220F172A);
+                        mainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                // KOLOM 1: TIM FAVORIT EROPA
+                                col1.removeAllViews();
+                                addDashColHeader(col1, config.favoriteEuroTeam.toUpperCase(Locale.US), "ESPN", 0xFF94A3B8, density);
+                                List<FootballScheduleManager.FootballMatch> combinedEuro = new ArrayList<>();
+                                combinedEuro.addAll(euroLeagueMatches);
+                                combinedEuro.addAll(uclMatchesAll);
+                                List<FootballScheduleManager.FootballMatch> favEuroMatches =
+                                        footballManager.filterMatchesByTeam(combinedEuro, config.favoriteEuroTeam);
 
-                            addStandingCell(row, String.valueOf(r.rank), 0.55f, 0xFFFFFFFF, true, Gravity.CENTER);
+                                List<FootballScheduleManager.FootballMatch> upcomingEuro = new ArrayList<>();
+                                List<FootballScheduleManager.FootballMatch> resultsEuro = new ArrayList<>();
+                                for (FootballScheduleManager.FootballMatch m : favEuroMatches) {
+                                    if ("RESULT".equals(m.matchCategory)) resultsEuro.add(m);
+                                    else upcomingEuro.add(m);
+                                }
+                                if (upcomingEuro.isEmpty()) {
+                                    addDashSubNote(col1, "Belum ada jadwal terdekat.", 0xFF94A3B8, density);
+                                } else {
+                                    for (int i = 0; i < Math.min(4, upcomingEuro.size()); i++) {
+                                        FootballScheduleManager.FootballMatch m = upcomingEuro.get(i);
+                                        addDashMatchBlock(col1, m.leagueName, m.getDisplayHeadline(), m.kickoffWibFormatted, density);
+                                    }
+                                }
+                                addDashSectionTag(col1, "HASIL", density);
+                                if (resultsEuro.isEmpty()) {
+                                    addDashSubNote(col1, "Belum ada hasil terbaru.", 0xFF94A3B8, density);
+                                } else {
+                                    for (int i = Math.max(0, resultsEuro.size() - 4); i < resultsEuro.size(); i++) {
+                                        FootballScheduleManager.FootballMatch m = resultsEuro.get(i);
+                                        addDashResultRow(col1, m.leagueName, m.getDisplayHeadline(), m.kickoffWibFormatted, density);
+                                    }
+                                }
 
-                            // Logo Klub + Nama Klub
-                            LinearLayout clubBox = new LinearLayout(MainActivity.this);
-                            clubBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 3.2f));
-                            clubBox.setOrientation(LinearLayout.HORIZONTAL);
-                            clubBox.setGravity(Gravity.CENTER_VERTICAL);
+                                // KOLOM 2: KLASEMEN LIGA TIM FAVORIT
+                                col2.removeAllViews();
+                                addDashColHeader(col2, "KLASEMEN", getLeagueLabelBySlug(config.favoriteEuroLeagueSlug), 0xFF34D399, density);
+                                addDashTableHeader(col2, "#", "Tim", "Pts", density);
+                                if (euroStandings.isEmpty()) {
+                                    addDashSubNote(col2, "Klasemen tidak tersedia.", 0xFF94A3B8, density);
+                                } else {
+                                    String favKw = config.favoriteEuroTeam.toLowerCase(Locale.US);
+                                    int shown = 0;
+                                    boolean favShown = false;
+                                    for (FootballScheduleManager.StandingRow r : euroStandings) {
+                                        boolean isFav = r.teamName.toLowerCase(Locale.US).contains(favKw);
+                                        if (shown < 12 || isFav || r.rank >= euroStandings.size() - 1) {
+                                            addDashTableRow(col2, String.valueOf(r.rank), r.teamName, r.points, isFav, density);
+                                            shown++;
+                                            if (isFav) favShown = true;
+                                        } else if (shown == 12 && !favShown) {
+                                            addDashSubNote(col2, "...", 0xFF64748B, density);
+                                            shown++;
+                                        }
+                                    }
+                                }
 
-                            ImageView logoIv = new ImageView(MainActivity.this);
-                            LinearLayout.LayoutParams lLp = new LinearLayout.LayoutParams((int) (18 * density), (int) (18 * density));
-                            lLp.rightMargin = (int) (6 * density);
-                            logoIv.setLayoutParams(lLp);
-                            logoIv.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                            loadClubLogoIntoView(r.logoUrl, logoIv);
-                            clubBox.addView(logoIv);
+                                // KOLOM 3: LIGA CHAMPIONS
+                                col3.removeAllViews();
+                                addDashColHeader(col3, "LIGA CHAMPIONS", "Jadwal terdekat - WIB", 0xFF34D399, density);
+                                if (uclMatchesAll.isEmpty()) {
+                                    addDashSubNote(col3, "Belum ada jadwal UCL.", 0xFF94A3B8, density);
+                                } else {
+                                    for (int i = 0; i < Math.min(9, uclMatchesAll.size()); i++) {
+                                        FootballScheduleManager.FootballMatch m = uclMatchesAll.get(i);
+                                        addDashMatchBlock(col3, "", m.getDisplayHeadline(), m.kickoffWibFormatted, density);
+                                    }
+                                }
 
-                            TextView nameTv = new TextView(MainActivity.this);
-                            nameTv.setText(r.teamName);
-                            nameTv.setTextColor(0xFFFFFFFF);
-                            nameTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
-                            nameTv.setSingleLine(true);
-                            clubBox.addView(nameTv);
-                            row.addView(clubBox);
+                                // KOLOM 4: TIM FAVORIT LIGA 1 INDONESIA
+                                col4.removeAllViews();
+                                addDashColHeader(col4, config.favoriteIndoTeam.toUpperCase(Locale.US), "Liga 1 BRI", 0xFF34D399, density);
+                                String indoKw = config.favoriteIndoTeam.toLowerCase(Locale.US);
+                                if (!indoStandings.isEmpty()) {
+                                    for (int i = 0; i < Math.min(6, indoStandings.size()); i++) {
+                                        FootballScheduleManager.StandingRow r = indoStandings.get(i);
+                                        boolean isFav = r.teamName.toLowerCase(Locale.US).contains(indoKw);
+                                        addDashTableRow(col4, String.valueOf(r.rank), r.teamName, r.points, isFav, density);
+                                    }
+                                }
+                                List<FootballScheduleManager.FootballMatch> favIndoMatches =
+                                        footballManager.filterMatchesByTeam(indoMatchesAll, config.favoriteIndoTeam);
+                                List<FootballScheduleManager.FootballMatch> upIndo = new ArrayList<>();
+                                List<FootballScheduleManager.FootballMatch> resIndo = new ArrayList<>();
+                                for (FootballScheduleManager.FootballMatch m : favIndoMatches) {
+                                    if ("RESULT".equals(m.matchCategory)) resIndo.add(m);
+                                    else upIndo.add(m);
+                                }
+                                addDashSectionTag(col4, "JADWAL", density);
+                                if (upIndo.isEmpty()) {
+                                    addDashSubNote(col4, "Belum ada jadwal terdekat.", 0xFF94A3B8, density);
+                                } else {
+                                    for (int i = 0; i < Math.min(3, upIndo.size()); i++) {
+                                        FootballScheduleManager.FootballMatch m = upIndo.get(i);
+                                        addDashMatchBlock(col4, "", m.getDisplayHeadline(), m.kickoffWibFormatted, density);
+                                    }
+                                }
+                                addDashSectionTag(col4, "HASIL", density);
+                                if (resIndo.isEmpty()) {
+                                    addDashSubNote(col4, "Belum ada hasil terbaru.", 0xFF94A3B8, density);
+                                } else {
+                                    for (int i = Math.max(0, resIndo.size() - 2); i < resIndo.size(); i++) {
+                                        FootballScheduleManager.FootballMatch m = resIndo.get(i);
+                                        addDashResultRow(col4, "", m.getDisplayHeadline(), m.kickoffWibFormatted, density);
+                                    }
+                                }
 
-                            addStandingCell(row, r.played, 0.7f, 0xEEFFFFFF, false, Gravity.CENTER);
-                            addStandingCell(row, r.won + "/" + r.drawn + "/" + r.lost, 1.15f, 0xCCFFFFFF, false, Gravity.CENTER);
-                            addStandingCell(row, r.gd, 0.7f, 0xFF7DD3FC, false, Gravity.CENTER);
-                            addStandingCell(row, r.points, 0.8f, 0xFF34D399, true, Gravity.CENTER);
-
-                            contentList.addView(row);
-                        }
+                                // KOLOM 5: PERINGKAT FIFA
+                                col5.removeAllViews();
+                                addDashColHeader(col5, "PERINGKAT FIFA", "Dunia", 0xFF34D399, density);
+                                addDashTableHeader(col5, "#", "Tim", "Poin", density);
+                                for (FootballScheduleManager.FifaRankRow r : fifaWorld) {
+                                    addDashTableRow(col5, String.valueOf(r.rank), r.country, r.points, false, density);
+                                }
+                                addDashSectionTag(col5, "INDONESIA & ASEAN", density);
+                                for (FootballScheduleManager.FifaRankRow r : fifaAsean) {
+                                    boolean isId = r.country.toLowerCase(Locale.US).contains("indonesia");
+                                    addDashTableRow(col5, String.valueOf(r.rank), r.country, r.points, isId, density);
+                                }
+                            }
+                        });
                     }
                 });
             }
+        };
+
+        final AlertDialog dlg = showTranslucentDialog(
+                new AlertDialog.Builder(this)
+                        .setView(rootDlg)
+                        .setNegativeButton("Tutup", null)
+        );
+        try {
+            if (dlg.getWindow() != null) {
+                int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.96f);
+                dlg.getWindow().setLayout(w, ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+        } catch (Exception ignored) {
+        }
+
+        btnFavEuro.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dlg.dismiss();
+                showFavoriteEuroTeamPicker();
+            }
         });
+        btnFavIndo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dlg.dismiss();
+                showFavoriteIndoTeamPicker();
+            }
+        });
+        btnRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadDashboardData.run();
+                Toast.makeText(MainActivity.this, "Memperbarui 5 kolom data ESPN...", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        loadDashboardData.run();
     }
 
-    private void addStandingCell(LinearLayout parent, String text, float weight, int color, boolean bold, int gravity) {
+    private TextView createGlassPillButton(String text, int accentColor, float density) {
+        final TextView btn = new TextView(this);
+        btn.setText(text);
+        btn.setTextColor(0xFFFFFFFF);
+        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        btn.setPadding((int) (10 * density), (int) (5 * density), (int) (10 * density), (int) (5 * density));
+        btn.setFocusable(true);
+        btn.setFocusableInTouchMode(true);
+        btn.setClickable(true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = (int) (6 * density);
+        btn.setLayoutParams(lp);
+
+        final GradientDrawable nb = new GradientDrawable();
+        nb.setCornerRadius(999f);
+        nb.setColor(0x441E293B);
+        nb.setStroke((int) (1.2f * density), accentColor);
+
+        final GradientDrawable fb = new GradientDrawable();
+        fb.setCornerRadius(999f);
+        fb.setColor(0xAA0284C7);
+        fb.setStroke((int) (2.2f * density), 0xFFFDE047);
+
+        btn.setBackground(nb);
+        btn.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                v.setBackground(hasFocus ? fb : nb);
+            }
+        });
+        return btn;
+    }
+
+    private LinearLayout createGlassDashboardColumn(float density, boolean rightGap) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding((int) (8 * density), (int) (8 * density), (int) (8 * density), (int) (8 * density));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        if (rightGap) lp.rightMargin = (int) (6 * density);
+        col.setLayoutParams(lp);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(10f * density);
+        bg.setColor(0x4D0B132B);
+        bg.setStroke((int) (1f * density), 0x33FFFFFF);
+        col.setBackground(bg);
+        return col;
+    }
+
+    private void addDashColHeader(LinearLayout col, String title, String subRight, int subColor, float density) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView tvL = new TextView(this);
+        tvL.setText(title);
+        tvL.setTextColor(0xFFFFFFFF);
+        tvL.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+        tvL.setTypeface(Typeface.DEFAULT_BOLD);
+        tvL.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        tvL.setSingleLine(true);
+        tvL.setEllipsize(TextUtils.TruncateAt.END);
+        row.addView(tvL);
+        col.addView(row);
+
+        if (subRight != null && !subRight.isEmpty()) {
+            TextView tvSub = new TextView(this);
+            tvSub.setText(subRight);
+            tvSub.setTextColor(subColor);
+            tvSub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+            tvSub.setPadding(0, (int) (1 * density), 0, (int) (4 * density));
+            col.addView(tvSub);
+        }
+    }
+
+    private void addDashSectionTag(LinearLayout col, String label, float density) {
         TextView tv = new TextView(this);
-        tv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, weight));
+        tv.setText(label);
+        tv.setTextColor(0xFF34D399);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setPadding(0, (int) (6 * density), 0, (int) (2 * density));
+        col.addView(tv);
+    }
+
+    private void addDashSubNote(LinearLayout col, String text, int color, float density) {
+        TextView tv = new TextView(this);
         tv.setText(text);
         tv.setTextColor(color);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
-        tv.setGravity(gravity);
-        tv.setSingleLine(true);
-        if (bold) tv.setTypeface(Typeface.DEFAULT_BOLD);
-        parent.addView(tv);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        tv.setPadding(0, (int) (2 * density), 0, (int) (2 * density));
+        col.addView(tv);
+    }
+
+    private void addDashMatchBlock(LinearLayout col, String league, String headline, String timeStr, float density) {
+        if (league != null && !league.isEmpty()) {
+            TextView lg = new TextView(this);
+            lg.setText(league);
+            lg.setTextColor(0xFF94A3B8);
+            lg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+            lg.setSingleLine(true);
+            lg.setEllipsize(TextUtils.TruncateAt.END);
+            col.addView(lg);
+        }
+        TextView hl = new TextView(this);
+        hl.setText(headline);
+        hl.setTextColor(0xFFFFFFFF);
+        hl.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+        hl.setTypeface(Typeface.DEFAULT_BOLD);
+        hl.setSingleLine(true);
+        hl.setEllipsize(TextUtils.TruncateAt.END);
+        col.addView(hl);
+
+        TextView tm = new TextView(this);
+        tm.setText(timeStr);
+        tm.setTextColor(0xFF94A3B8);
+        tm.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+        tm.setPadding(0, 0, 0, (int) (4 * density));
+        tm.setSingleLine(true);
+        tm.setEllipsize(TextUtils.TruncateAt.END);
+        col.addView(tm);
+    }
+
+    private void addDashResultRow(LinearLayout col, String league, String headline, String timeStr, float density) {
+        if (league != null && !league.isEmpty()) {
+            TextView lg = new TextView(this);
+            lg.setText(league);
+            lg.setTextColor(0xFF94A3B8);
+            lg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8f);
+            lg.setSingleLine(true);
+            col.addView(lg);
+        }
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 0, 0, (int) (3 * density));
+
+        TextView hl = new TextView(this);
+        hl.setText(headline);
+        hl.setTextColor(0xFFE2E8F0);
+        hl.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        hl.setSingleLine(true);
+        hl.setEllipsize(TextUtils.TruncateAt.END);
+        hl.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(hl);
+
+        TextView tm = new TextView(this);
+        tm.setText(timeStr.replace(" WIB", ""));
+        tm.setTextColor(0xFF94A3B8);
+        tm.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+        tm.setSingleLine(true);
+        row.addView(tm);
+
+        col.addView(row);
+    }
+
+    private void addDashTableHeader(LinearLayout col, String c1, String c2, String c3, float density) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, (int) (2 * density), 0, (int) (2 * density));
+
+        TextView t1 = new TextView(this);
+        t1.setText(c1);
+        t1.setTextColor(0xFF94A3B8);
+        t1.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f);
+        t1.setLayoutParams(new LinearLayout.LayoutParams((int) (22 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(t1);
+
+        TextView t2 = new TextView(this);
+        t2.setText(c2);
+        t2.setTextColor(0xFF94A3B8);
+        t2.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f);
+        t2.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(t2);
+
+        TextView t3 = new TextView(this);
+        t3.setText(c3);
+        t3.setTextColor(0xFF94A3B8);
+        t3.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f);
+        t3.setGravity(Gravity.RIGHT);
+        row.addView(t3);
+
+        col.addView(row);
+    }
+
+    private void addDashTableRow(LinearLayout col, String rk, String name, String pts, boolean highlight, float density) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding((int) (3 * density), (int) (2 * density), (int) (3 * density), (int) (2 * density));
+        if (highlight) {
+            GradientDrawable hl = new GradientDrawable();
+            hl.setCornerRadius(5f * density);
+            hl.setColor(0x5510B981);
+            row.setBackground(hl);
+        }
+
+        TextView t1 = new TextView(this);
+        t1.setText(rk);
+        t1.setTextColor(highlight ? 0xFF6EE7B7 : 0xFFCBD5E1);
+        t1.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        t1.setLayoutParams(new LinearLayout.LayoutParams((int) (22 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(t1);
+
+        TextView t2 = new TextView(this);
+        t2.setText(name);
+        t2.setTextColor(highlight ? 0xFF6EE7B7 : 0xFFFFFFFF);
+        t2.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        if (highlight) t2.setTypeface(Typeface.DEFAULT_BOLD);
+        t2.setSingleLine(true);
+        t2.setEllipsize(TextUtils.TruncateAt.END);
+        t2.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(t2);
+
+        TextView t3 = new TextView(this);
+        t3.setText(pts);
+        t3.setTextColor(highlight ? 0xFF6EE7B7 : 0xFFE2E8F0);
+        t3.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        t3.setTypeface(Typeface.DEFAULT_BOLD);
+        t3.setGravity(Gravity.RIGHT);
+        row.addView(t3);
+
+        col.addView(row);
+    }
+
+    private String getLeagueLabelBySlug(String slug) {
+        for (int i = 0; i < FootballScheduleManager.STANDINGS_LEAGUE_SLUGS.length; i++) {
+            if (FootballScheduleManager.STANDINGS_LEAGUE_SLUGS[i].equals(slug)) {
+                return FootballScheduleManager.STANDINGS_LEAGUE_NAMES[i];
+            }
+        }
+        return "Premier League";
+    }
+
+    private void showFavoriteEuroTeamPicker() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
+                .setTitle("Pilih Tim Favorit Eropa")
+                .setItems(FootballScheduleManager.FAV_EURO_TEAMS, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        config.favoriteEuroTeam = FootballScheduleManager.FAV_EURO_TEAMS[which];
+                        config.favoriteEuroLeagueSlug = FootballScheduleManager.FAV_EURO_SLUGS[which];
+                        Config.saveUserStringPref(MainActivity.this, "pref_fav_euro_team", config.favoriteEuroTeam);
+                        Config.saveUserStringPref(MainActivity.this, "pref_fav_euro_league", config.favoriteEuroLeagueSlug);
+                        showFootballScheduleDialog(false);
+                    }
+                });
+        showTranslucentDialog(b);
+    }
+
+    private void showFavoriteIndoTeamPicker() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
+                .setTitle("Pilih Tim Favorit Liga 1 Indonesia")
+                .setItems(FootballScheduleManager.FAV_INDO_TEAMS, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        config.favoriteIndoTeam = FootballScheduleManager.FAV_INDO_TEAMS[which];
+                        Config.saveUserStringPref(MainActivity.this, "pref_fav_indo_team", config.favoriteIndoTeam);
+                        showFootballScheduleDialog(false);
+                    }
+                });
+        showTranslucentDialog(b);
     }
 
     private void showFootballCategoryFilterDialog() {
