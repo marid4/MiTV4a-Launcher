@@ -75,6 +75,10 @@ public final class Config {
     public double prayerLatitude = WeatherManager.KARYA_MULYA_LAT;
     public double prayerLongitude = WeatherManager.KARYA_MULYA_LNG;
     public int prayerTimezoneOffset = PrayerTimesCalculator.DEFAULT_TIMEZONE_WIB;
+    public String favoriteEuroTeam = "Man United";
+    public String favoriteEuroLeagueSlug = "eng.1";
+    public String favoriteIndoTeam = "Persib";
+    public boolean runningTextIncludeFootballNews = true;
     public int prayerIhtiyatMinutes = PrayerTimesCalculator.DEFAULT_IHTIYAT_MINUTES;
     public boolean prayerOnlineSync = true;
     public boolean enableAdzanSound = true;
@@ -110,7 +114,7 @@ public final class Config {
     // Modifikasi 7: Cek Update & Update Otomatis dari GitHub Releases
     public boolean autoCheckGithubUpdate = true;
     public boolean autoDownloadInstallUpdate = true;
-    public String githubRepoSlug = "marid4/CrbLauncher";
+    public String githubRepoSlug = "marid4/MiTV4a-Launcher";
 
     // Modifikasi 8: Addon AdGuard Home & DNS
     public String adguardHomeUrl = "http://192.168.1.2:3000";
@@ -227,6 +231,11 @@ public final class Config {
         try {
             cfg.prayerLatitude = Double.parseDouble(prefs.getString("pref_prayer_lat", String.valueOf(cfg.prayerLatitude)));
             cfg.prayerLongitude = Double.parseDouble(prefs.getString("pref_prayer_lng", String.valueOf(cfg.prayerLongitude)));
+            cfg.prayerTimezoneOffset = prefs.getInt("pref_prayer_tz_offset", cfg.prayerTimezoneOffset);
+            cfg.favoriteEuroTeam = prefs.getString("pref_fav_euro_team", "Man United");
+            cfg.favoriteEuroLeagueSlug = prefs.getString("pref_fav_euro_league", "eng.1");
+            cfg.favoriteIndoTeam = prefs.getString("pref_fav_indo_team", "Persib");
+            cfg.runningTextIncludeFootballNews = prefs.getBoolean("pref_rt_football_news", true);
         } catch (Exception ignored) {
         }
 
