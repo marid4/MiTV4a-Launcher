@@ -54,14 +54,13 @@ public final class WeatherManager {
 
         public String toDetailedReport() {
             int tempRounded = (int) Math.round(temperatureC);
-            return "Wilayah     : Kelurahan Karya Mulya, Kec. Kesambi, Kota Cirebon\n"
-                    + "Koordinat   : " + KARYA_MULYA_LAT + ", " + KARYA_MULYA_LNG + "\n"
+            return "Wilayah     : " + areaName + "\n"
                     + "Suhu Udara  : " + String.format("%.1f C (%d C)", temperatureC, tempRounded) + "\n"
                     + "Kondisi     : " + conditionText + "\n"
                     + "Kelembaban  : " + humidityPercent + " %\n"
                     + "Angin       : " + String.format("%.1f km/jam", windSpeedKmh) + "\n"
-                    + "Sumber Data : " + (isOnlineData ? "Open-Meteo Live Weather API" : "Estimasi Iklim Cirebon (Offline)") + "\n"
-                    + "Update      : " + updatedTimeWib + " WIB";
+                    + "Sumber Data : " + (isOnlineData ? "Open-Meteo Live Weather API" : "Estimasi Iklim Indonesia (Offline)") + "\n"
+                    + "Update      : " + updatedTimeWib;
         }
     }
 
@@ -79,11 +78,15 @@ public final class WeatherManager {
     }
 
     public WeatherInfo fetchKaryaMulyaWeatherSync() {
+        return fetchWeatherForLocationSync(DEFAULT_AREA_NAME, KARYA_MULYA_LAT, KARYA_MULYA_LNG);
+    }
+
+    public WeatherInfo fetchWeatherForLocationSync(String areaName, double lat, double lng) {
         HttpURLConnection conn = null;
         try {
             String urlStr = "https://api.open-meteo.com/v1/forecast?latitude="
-                    + KARYA_MULYA_LAT + "&longitude=" + KARYA_MULYA_LNG
-                    + "&current_weather=true&hourly=relativehumidity_2m&timezone=Asia%2FJakarta";
+                    + lat + "&longitude=" + lng
+                    + "&current_weather=true&hourly=relativehumidity_2m&timezone=auto";
             URL url = new URL(urlStr);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
